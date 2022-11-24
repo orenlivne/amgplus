@@ -1,0 +1,16 @@
+name: hm
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - ipython
+  - jupyterlab
+  - matplotlib
+  - numpy
+  - pandas
+  - pytest
+  - python >= 3.9
+  - scikit-learn
+  - scipy
+prefix: /Users/olivne/.conda/envs/hm
+
