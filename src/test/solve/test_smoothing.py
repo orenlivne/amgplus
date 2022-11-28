@@ -3,7 +3,6 @@ import logging
 import pytest
 import scipy.sparse
 import unittest
-from numpy.ma.testutils import assert_array_almost_equal
 
 import helmholtz as hm
 
@@ -20,7 +19,8 @@ class TestSmoothing(unittest.TestCase):
         a = hm.linalg.helmholtz_1d_operator(kh, n)
         operator = lambda x: a.dot(x)
 
-        kaczmarz = hm.solve.relax.KaczmarzRelaxer(a, scipy.sparse.eye(a.shape[0]))
+        b = scipy.sparse.eye(a.shape[0])
+        kaczmarz = hm.solve.relax.KaczmarzRelaxer(a, b)
         factor, num_sweeps, _, _, _, conv = \
             hm.solve.smoothing.shrinkage_factor(operator, lambda x, b: kaczmarz.step(x, b), (n, ))
         assert factor == pytest.approx(0.62, 1e-2)
@@ -28,7 +28,7 @@ class TestSmoothing(unittest.TestCase):
         assert conv == pytest.approx(0.91, 1e-2)
 
         # GS is a more efficient smoother, thus takes less to slow down.
-        gs = hm.solve.relax.GsRelaxer(a)
+        gs = hm.solve.relax.GsRelaxer(a, b)
         factor, num_sweeps, _, _, _, conv = \
             hm.solve.smoothing.shrinkage_factor(operator, lambda x, b: gs.step(x, b), (n, ))
         assert factor == pytest.approx(0.43, 1e-2)
@@ -41,7 +41,8 @@ class TestSmoothing(unittest.TestCase):
         a = hm.linalg.helmholtz_1d_operator(kh, n)
         operator = lambda x: a.dot(x)
 
-        kaczmarz = hm.solve.relax.KaczmarzRelaxer(a, scipy.sparse.eye(a.shape[0]))
+        b = scipy.sparse.eye(a.shape[0])
+        kaczmarz = hm.solve.relax.KaczmarzRelaxer(a, b)
         factor, num_sweeps, _, _, _, conv = \
             hm.solve.smoothing.shrinkage_factor(operator, lambda x, b: kaczmarz.step(x, b), (n, ))
         assert factor == pytest.approx(0.63, 1e-2)
@@ -49,7 +50,7 @@ class TestSmoothing(unittest.TestCase):
         assert conv == pytest.approx(0.93, 1e-2)
 
         # GS is more efficient than Kaczmarz here too, but diverges.
-        gs = hm.solve.relax.GsRelaxer(a)
+        gs = hm.solve.relax.GsRelaxer(a, b)
         factor, num_sweeps, _, _, _, conv = \
             hm.solve.smoothing.shrinkage_factor(operator, lambda x, b: gs.step(x, b), (n, ))
         assert factor == pytest.approx(0.48, 1e-2)

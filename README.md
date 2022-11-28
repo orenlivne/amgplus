@@ -12,7 +12,7 @@
 
 ## Installation
 - Install conda.
-- Create a conda environment from the attached environment.yml: `conda env create -f environment. yml.`
+- Create a conda environment from the attached environment.yml: `conda env create -f environment.yml.`
 - Add `src` to your PYTHONPATH.
 
 ## Testing

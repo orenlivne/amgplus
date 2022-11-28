@@ -201,8 +201,8 @@ class TestInterpolation:
         r, aggregates, num_components, energy_error = cr.create_coarsening_domain(x, threshold=0.15)
 
         aggregate_size = np.array([len(aggregate) for aggregate in aggregates])
-        assert_array_equal(aggregate_size, [6, 6, 4, 6, 6, 4])
-        assert_array_equal(num_components, [3, 3, 2, 3, 3, 2])
+        assert_array_equal(aggregate_size, [4, 4, 6, 6, 4, 6, 1, 1])
+        assert_array_equal(num_components, [2, 2, 3, 3, 2, 3, 1, 1])
 
         # Force a small caliber since our sample size is small ((10 - some for testing) / 2 for fitting).
         p = hm.setup.interpolation.create_interpolation_least_squares_domain(

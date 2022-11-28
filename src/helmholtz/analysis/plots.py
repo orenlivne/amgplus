@@ -3,8 +3,11 @@ import helmholtz.repetitive.coarsening_repetitive as hrc
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
-from moviepy.editor import VideoClip
-from moviepy.video.io.bindings import mplfig_to_npimage
+try:
+    from moviepy.editor import VideoClip
+    from moviepy.video.io.bindings import mplfig_to_npimage
+except ImportError:
+    pass
 
 _LOGGER = logging.getLogger(__name__)
 

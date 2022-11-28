@@ -1,4 +1,6 @@
 """Utilities: multilevel hierarchy for non-repetitive problems."""
+from typing import Optional
+
 import scipy.sparse
 import helmholtz as hm
 import helmholtz.hierarchy.multilevel as multilevel
@@ -32,16 +34,20 @@ def create_coarse_level(a: scipy.sparse.csr_matrix,
     return hm.hierarchy.multilevel.Level(ac, bc, relaxer, r, p, q)
 
 
-def create_finest_level(a: scipy.sparse.spmatrix, relaxer=None) -> multilevel.Level:
+def create_finest_level(a: scipy.sparse.spmatrix,
+                        b: Optional[scipy.sparse.spmatrix] = None,
+                        relaxer = None) -> multilevel.Level:
     """
     Creates a repetitive domain finest level.
     Args:
         a: fine-level operator (stiffness matrix).
+        b: mass operator (for eigenproblems).
         relaxer: optional relaxation scheme. Defaults to Kaczmarz.
 
     Returns: finest level object.
     """
-    b = scipy.sparse.eye(a.shape[0])
+    if b is None:
+        b = scipy.sparse.eye(a.shape[0])
     if relaxer is None:
-        relaxer = hm.solve.relax.KaczmarzRelaxer(a, b)
-    return multilevel.Level.create_finest_level(a, relaxer)
+        relaxer = hm.solve.relax.KaczmarzRelaxer(a, b=b)
+    return multilevel.Level.create_finest_level(a, b=b, relaxer=relaxer)

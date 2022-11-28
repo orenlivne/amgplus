@@ -67,7 +67,13 @@ def create_interpolation_least_squares_domain(
         nbhr = hm.setup.geometry.geometric_neighbors_from_locations(
             fine_location, coarse_location, domain_size, aggregate_size)
     else:
-        nbhr = _get_neighbor_set(x, a, r, neighborhood)
+        if aggregate_size is None:
+            nbhr = _get_neighbor_set(x, a, r, neighborhood)
+        else:
+            # TODO(oren): suppoort aggregate_size = list type (aggregate sizes), not just a scalar.
+            coarse_location = hm.setup.geometry.coarse_locations(fine_location, aggregate_size, num_components)
+            nbhr = hm.setup.geometry.geometric_neighbors_from_locations(
+                fine_location, coarse_location, domain_size, len(fine_location))
 
     if ritz:
         # Apply local Ritz projection (on which sub-domain?) to obtain smoother TVs.

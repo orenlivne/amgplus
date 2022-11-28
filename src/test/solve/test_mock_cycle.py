@@ -17,8 +17,9 @@ class TestMockCycle(unittest.TestCase):
         n = 16
         kh = 0.5
         a = hm.linalg.helmholtz_1d_operator(kh, n)
-        relaxer = hm.solve.relax.KaczmarzRelaxer(a, scipy.sparse.eye(a.shape[0]))
-        level = hm.hierarchy.multilevel.Level.create_finest_level(a, relaxer)
+        b = scipy.sparse.eye(a.shape[0])
+        relaxer = hm.solve.relax.KaczmarzRelaxer(a, b)
+        level = hm.hierarchy.multilevel.Level.create_finest_level(a, b, relaxer)
         relax_method = lambda x, b: level.relax(x, b)
         r = _create_svd_coarsening(level)
 
@@ -33,8 +34,9 @@ class TestMockCycle(unittest.TestCase):
         n = 16
         kh = 0.5
         a = hm.linalg.helmholtz_1d_operator(kh, n)
-        relaxer = hm.solve.relax.KaczmarzRelaxer(a, scipy.sparse.eye(a.shape[0]))
-        level = hm.hierarchy.multilevel.Level.create_finest_level(a, relaxer)
+        b = scipy.sparse.eye(a.shape[0])
+        relaxer = hm.solve.relax.KaczmarzRelaxer(a, b)
+        level = hm.hierarchy.multilevel.Level.create_finest_level(a, b, relaxer)
         relax_method = lambda x, b: level.relax(x, b)
         r = _create_svd_coarsening(level)
         r_pointwise = _create_pointwise_coarsening(level)
@@ -57,8 +59,9 @@ class TestMockCycle(unittest.TestCase):
         n = 16
         kh = 0.5
         a = hm.linalg.helmholtz_1d_operator(kh, n)
-        relaxer = hm.solve.relax.KaczmarzRelaxer(a, scipy.sparse.eye(a.shape[0]))
-        level = hm.hierarchy.multilevel.Level.create_finest_level(a, relaxer)
+        b = scipy.sparse.eye(a.shape[0])
+        relaxer = hm.solve.relax.KaczmarzRelaxer(a, b)
+        level = hm.hierarchy.multilevel.Level.create_finest_level(a, b, relaxer)
         relax_method = lambda x, b: level.relax(x, b)
         r = _create_svd_coarsening(level)
 
@@ -86,9 +89,9 @@ class TestMockCycle(unittest.TestCase):
             for j in range(i - 5, i + 4):
                 a[i, j % n] = b_stencil[j - i + 5]
         a = scipy.sparse.csr_matrix(a)
-
-        relaxer = hm.solve.relax.KaczmarzRelaxer(a, scipy.sparse.eye(a.shape[0]))
-        level = hm.hierarchy.multilevel.Level.create_finest_level(a, relaxer)
+        b = scipy.sparse.eye(a.shape[0])
+        relaxer = hm.solve.relax.KaczmarzRelaxer(a, b)
+        level = hm.hierarchy.multilevel.Level.create_finest_level(a, b, relaxer)
         relax_method = lambda x, b: level.relax(x, b)
         r = _create_svd_coarsening(level)
 

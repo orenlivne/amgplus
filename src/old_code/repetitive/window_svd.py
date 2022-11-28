@@ -31,8 +31,9 @@ def get_window_svd(a,
         # By default, use more test functions than gridpoints so we have a sufficiently large test function sample.
         num_examples = 4 * np.prod(window_shape)
     x = hm.solve.run.random_test_matrix(window_shape, num_examples=num_examples)
-    relaxer = hm.solve.relax.KaczmarzRelaxer(a, scipy.sparse.eye(a.shape[0]))
-    level = hm.hierarchy.multilevel.Level.create_finest_level(a, relaxer)
+    b = scipy.sparse.eye(a.shape[0])
+    relaxer = hm.solve.relax.KaczmarzRelaxer(a, b)
+    level = hm.hierarchy.multilevel.Level.create_finest_level(a, b, relaxer)
     b = np.zeros_like(x)
     x, _ = hm.solve.run.run_iterative_method(level.operator, lambda x: level.relax(x, b), x, num_sweeps=num_sweeps)
     # Calculate the SVD.

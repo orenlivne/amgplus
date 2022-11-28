@@ -35,8 +35,8 @@ class Level:
         self._relaxer = relaxer
 
     @staticmethod
-    def create_finest_level(a, relaxer) -> "Level":
-        return Level(a, scipy.sparse.eye(a.shape[0]), relaxer, None, None, None)
+    def create_finest_level(a, b, relaxer) -> "Level":
+        return Level(a, b, relaxer, None, None, None)
 
     @property
     def size(self):

@@ -1,4 +1,4 @@
-name: hm
+name: amgp
 channels:
   - conda-forge
   - defaults
@@ -12,5 +12,4 @@ dependencies:
   - python >= 3.9
   - scikit-learn
   - scipy
-prefix: /Users/olivne/.conda/envs/hm
-
+prefix: /Users/olivne/.conda/envs/amgp
