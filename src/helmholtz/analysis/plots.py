@@ -12,7 +12,8 @@ except ImportError:
 _LOGGER = logging.getLogger(__name__)
 
 
-def plot_svd_coarsening_accuracy(level, num_sweeps: int, aggregate_size: int, num_components):
+def plot_svd_coarsening_accuracy(level, num_sweeps: int, aggregate_size: int, num_components,
+                                 num_examples: int = 4):
     """Checks coarsening based on relaxed TVs, for different number of relaxation sweeps.
     If aggregate_size is not None, forces that aggregate size for the entire domain."""
     num_sweeps_values = 5 * 2 ** np.arange(8)
@@ -20,12 +21,14 @@ def plot_svd_coarsening_accuracy(level, num_sweeps: int, aggregate_size: int, nu
     fig, axs = plt.subplots(1, 3, figsize=(16, 4))
 
     # Create relaxed TVs.
-    x_random = hm.solve.run.random_test_matrix((level.a.shape[0],), num_examples=4)
-    b = np.zeros_like(x_random)
-    x = hm.solve.run.run_iterative_method(
-        level.operator, lambda x: level.relax(x, b), x_random, num_sweeps=num_sweeps)[0]
+    x = level.get_test_matrix(num_sweeps, num_examples=num_examples)
+    # x_random = hm.solve.run.random_test_matrix((level.a.shape[0],), num_examples=num_examples)
+    # b = np.zeros_like(x_random)
+    # x = hm.solve.run.run_iterative_method(
+    #     level.operator, lambda x: level.relax(x, b), x_random, num_sweeps=num_sweeps)[0]
     r, s = hm.repetitive.locality.create_coarsening(x, aggregate_size, num_components, normalize=False)
-
+    print(x.shape)
+    print("s", s)
     # x_random = hm.solve.run.random_test_matrix((a.shape[0],), num_examples=4 * aggregate_size)
     # b = np.zeros_like(x_random)
     # x = hm.solve.run.run_iterative_method(

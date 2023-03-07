@@ -125,6 +125,21 @@ class Level:
         """
         return self._relaxer.step(x, b, lam=lam)
 
+    def get_test_matrix(self, num_sweeps: int, num_examples: int = None):
+        """
+        Returns a test matrix, whose columns are relaxed test vectors.
+
+        Args:
+            num_sweeps: number of sweeps to run.
+            num_examples: number of vectors to generate.
+
+        Returns: test matrix, shape = (level.size, num_examples)
+        """
+        x = hm.solve.run.random_test_matrix((self.a.shape[0],), num_examples=num_examples)
+        b = np.zeros_like(x)
+        x, _ = hm.solve.run.run_iterative_method(self.operator, lambda x: self.relax(x, b), x, num_sweeps=num_sweeps)
+        return x
+
     def restrict(self, x: np.array) -> np.array:
         """
         Returns the restriction action P^T*x.

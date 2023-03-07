@@ -84,8 +84,8 @@ class GsRelaxer:
             splitter = lambda a: block_tril(a, block_size)
         self._omega = omega
         self._b = b.tocsr()
-        self._ma = splitter(a)
-        self._mb = splitter(b)
+        self._ma = splitter(a).tocsr()
+        self._mb = splitter(b).tocsr()
 
     def step(self, x: np.array, b: np.array, lam: float = 0) -> np.array:
         """

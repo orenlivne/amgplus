@@ -104,16 +104,18 @@ def shrinkage_factor(operator, method, domain_shape: np.ndarray, num_examples: i
     # Find point of diminishing returns (PODR). Allow a leeway of 'leeway_factor' from the maximum efficiency point.
     reduction = np.mean(residual_history / residual_history[0], axis=1)
     efficiency = reduction ** (1 / np.clip(np.arange(residual_history.shape[0]), 1e-2, None))
-    sufficient_reduction_index = min(np.where(reduction < min_residual_reduction)[0])
+    has_sufficient_reduction = np.where(reduction < min_residual_reduction)[0]
     index = max(np.where(efficiency < leeway_factor * min(efficiency))[0])
-    index = max(index, sufficient_reduction_index)
+    if has_sufficient_reduction.size:
+        sufficient_reduction_index = min(has_sufficient_reduction)
+        index = max(index, sufficient_reduction_index)
     # factor = residual reduction per sweep over the first 'index' sweeps.
     factor = efficiency[index]
 
     # Estimate the asymptotic convergence factor at twice the PODR.
     # Residual convergence factor history.
     conv_history = np.mean(np.exp(np.diff(np.log(residual_history), axis=0)), axis=1)
-    conv_factor = conv_history[min(max(10, 2 * index), len(conv_history) - 1)]
+    conv_factor = conv_history[-1] # min(max(10, 2 * index), len(conv_history) - 1)]
     result = (factor, index, residual_history, conv_history, rer_history, conv_factor)
     if output == "history":
         result = result + (x_history, r_history)
@@ -159,11 +161,13 @@ def check_relax_cycle_shrinkage(multilevel, max_sweeps: int = 20, num_levels: in
                                 nu_pre: int = 2, nu_post: int = 2, nu_coarsest: int = 4,
                                 slow_conv_factor: float = 0.95, leeway_factor: float = 1.2,
                                 num_examples: int = 5, x0: np.ndarray = None,
-                                print_frequency: int = 1, plot: bool = True):
-    """Checks the two-level relaxation cycle shrinkage vs. relaxation, unless num_levels=1, in which case
-    we only run relaxation."""
+                                print_frequency: int = 1, plot: bool = True,
+                                lam: float = 0.0):
+    """Checks the two-level relaxation cycle shrinkage vs. relaxation for A*x-lam*B*x=0 with fixed lam,
+    unless num_levels=1, in which case we only run relaxation."""
+    # TODO(oren): refactor into separate computation and plotting functions.
     level = multilevel[0]
-    a = level.a
+    a = level.a if lam == 0 else level.a - lam * level.b
     n = a.shape[0]
     b = np.zeros((n, num_examples))
     operator = lambda x: a.dot(x)
