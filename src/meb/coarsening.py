@@ -24,7 +24,7 @@ def create_eigenproblem(domain_size: float, n: int, relaxer) -> hm.hierarchy.mul
 
 def create_coarsening(level: hm.hierarchy.multilevel.Level, num_tv: int, num_sweeps_tv: int, caliber: int):
     # Generate initial test vectors.
-    x = hm.setup.auto_setup.get_test_matrix(level.a, num_sweeps_tv, num_examples=num_tv)
+    x = level.get_test_matrix(num_sweeps_tv, num_examples=num_tv)
 
     # Coarsening operator.
     aggregate_size = 2

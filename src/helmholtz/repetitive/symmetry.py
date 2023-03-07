@@ -72,7 +72,7 @@ def symmetrize(r, ap, aggregate_size, num_components):
 # num_examples = 4
 # num_windows = 32
 # num_iterations = 10
-# x = hm.setup.auto_setup.get_test_matrix(level.a, num_sweeps_on_vectors, num_examples=num_examples)
+# x = level.get_test_matrix(num_sweeps_on_vectors, num_examples=num_examples)
 
 # all_conv = []
 # r = coarse_level._r

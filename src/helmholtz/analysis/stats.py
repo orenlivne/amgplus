@@ -71,7 +71,7 @@ def compare_coarsening(level,
         x, lam = hm.analysis.ideal.ideal_tv(level.a, num_examples)
     else:
         _LOGGER.info("Generating {} TVs with {} sweeps".format(num_examples, nu))
-        x = hm.setup.auto_setup.get_test_matrix(level.a, nu, num_examples=num_examples)
+        x = level.get_test_matrix(a, nu, num_examples=num_examples)
         _LOGGER.info("RER {:.3f}".format(norm(level.a.dot(x)) / norm(x)))
 
     # Create coarsening.
@@ -130,7 +130,7 @@ def initial_tv(level, nu: int, ideal_tv: bool = False, num_examples: int = 5):
         x, lam = hm.analysis.ideal.ideal_tv(level.a, num_examples)
     else:
         _LOGGER.info("Generating {} TVs with {} sweeps".format(num_examples, nu))
-        x = hm.setup.auto_setup.get_test_matrix(level.a, nu, num_examples=num_examples)
+        x = level.get_test_matrix(nu, num_examples=num_examples)
     return x
 
 
