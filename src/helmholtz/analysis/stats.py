@@ -62,6 +62,7 @@ def compare_coarsening(level,
     if m is None:
         m = level.size // aggregate_size
     subdomain_size = m * aggregate_size
+    _LOGGER.info("level.size {} subdomain_size {}".format(level.size, subdomain_size))
     a_subdomain = level.a[:subdomain_size, :subdomain_size]
     # if m is None:
     #     m = level.size // aggregate_size
@@ -71,7 +72,7 @@ def compare_coarsening(level,
         x, lam = hm.analysis.ideal.ideal_tv(level.a, num_examples)
     else:
         _LOGGER.info("Generating {} TVs with {} sweeps".format(num_examples, nu))
-        x = level.get_test_matrix(a, nu, num_examples=num_examples)
+        x = level.get_test_matrix(nu, num_examples=num_examples)
         _LOGGER.info("RER {:.3f}".format(norm(level.a.dot(x)) / norm(x)))
 
     # Create coarsening.
@@ -79,7 +80,12 @@ def compare_coarsening(level,
     r = coarsener.tile(level.a.shape[0] // aggregate_size)
 
     # Calculate local Mock cycle rates.
-    level_subdomain = hm.setup.hierarchy.create_finest_level(a_subdomain)
+    # TODO(oren): pass relaxer from Level to creating level_subdomain. May need a factory method or relaxers (Kac/GS).
+    # We want to keep the same relaxer, just different domain size. For now, if m is None, just use the original level.
+    if subdomain_size == level.size:
+        level_subdomain = level
+    else:
+        level_subdomain = hm.setup.hierarchy.create_finest_level(a_subdomain)
     r_subdomain = coarsener.tile(m)
     mock_conv = [hm.setup.auto_setup.mock_cycle_conv_factor(level_subdomain, r_subdomain, nu) for nu in nu_values]
 
@@ -172,7 +178,7 @@ def build_coarse_level(level, x, domain_size: float,
     if m is None:
         m = level.size // aggregate_size
     subdomain_size = m * aggregate_size
-    a_subdomain = level.a[:subdomain_size, :subdomain_size]
+    #a_subdomain = level.a[:subdomain_size, :subdomain_size]
     # if m is None:
     #     m = level.size // aggregate_size
     # _LOGGER.info("Domain size {}".format(m * aggregate_size))

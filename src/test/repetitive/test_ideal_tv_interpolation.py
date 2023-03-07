@@ -42,7 +42,7 @@ class TestIdealTvInterpolation:
         a = hm.linalg.helmholtz_1d_operator(kh, n)
         level = hm.setup.hierarchy.create_finest_level(a)
         level.location = np.arange(level.size)
-#        x = hm.setup.auto_setup.get_test_matrix(a, nu, num_examples=num_examples)
+#        x = level.get_test_matrix(nu, num_examples=num_examples)
         x, _ = hm.analysis.ideal.ideal_tv(level.a, num_examples)
 
         r, s = hm.repetitive.locality.create_coarsening(x, aggregate_size, num_components, normalize=True)
