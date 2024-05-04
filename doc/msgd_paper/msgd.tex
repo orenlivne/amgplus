@@ -1,0 +1,400 @@
+\documentclass[11pt]{article}
+%=================================================================
+% Page setup, library includes, macro definitions.
+%=================================================================
+
+\usepackage{algorithm, algpseudocode, amsmath, amssymb, amsfonts, authblk, graphicx, subfig, url}
+
+% Define custom commands (macros).
+
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\newcommand{\ger}{{\mbox{GER}}}
+
+\newcommand{\boldb}{\boldsymbol{b}}
+\newcommand{\bd}{\boldsymbol{d}}
+\newcommand{\boldf}{\boldsymbol{f}}
+\newcommand{\bh}{\boldsymbol{h}}
+\newcommand{\bx}{\boldsymbol{x}}
+\newcommand{\by}{\boldsymbol{y}}
+
+\newcommand{\bA}{\boldsymbol{A}}
+\newcommand{\bB}{\boldsymbol{B}}
+\newcommand{\bC}{\boldsymbol{C}}
+\newcommand{\bD}{\boldsymbol{D}}
+\newcommand{\bH}{\boldsymbol{H}}
+\newcommand{\bI}{\boldsymbol{I}}
+\newcommand{\bG}{\boldsymbol{G}}
+\newcommand{\bL}{\boldsymbol{L}}
+\newcommand{\bM}{\boldsymbol{M}}
+\newcommand{\bP}{\boldsymbol{P}}
+\newcommand{\bQ}{\boldsymbol{Q}}
+\newcommand{\bR}{\boldsymbol{R}}
+\newcommand{\bV}{\boldsymbol{V}}
+\newcommand{\bW}{\boldsymbol{W}}
+\newcommand{\bX}{\boldsymbol{X}}
+\newcommand{\bZ}{\boldsymbol{Z}}
+\newcommand{\bybar}{\boldsymbol{\overline{Y}}}
+
+\newcommand{\boldeta}{\boldsymbol{\eta}}
+
+% Sets.
+\newcommand{\cD}{{\cal D}}
+\newcommand{\cT}{{\cal T}}
+\newcommand{\cI}{{\cal I}}
+\newcommand{\spd}{\mathcal{L}^n_+}
+
+% Misc.
+\newcommand{\of}{\overline{f}}
+\newcommand{\cond}{\kappa}
+\newcommand{\condparam}{\alpha}
+\newcommand{\bgamma}{\boldsymbol{\gamma}}
+\newcommand{\bdelta}{\boldsymbol{\delta}}
+\newcommand{\btheta}{\boldsymbol{\theta}}
+\newcommand{\kt}{\widetilde{\kappa}}
+\newcommand{\lmax}{\lambda_{\text{max}}}
+\newcommand{\lmin}{\lambda_{\text{min}}}
+\newcommand{\tg}{\widetilde{\bG}}
+\newcommand{\Real}{\mathbb{R}}
+\newcommand{\xa}{\bx_*(\alpha)}
+
+%=================================================================
+% Cover page.
+%=================================================================
+\title{Multilevel Optimization of Neural Networks: \\ Work Log}
+
+\author[1]{Achi Brandt}
+\author[2]{Oren E. Livne}
+\affil[1]{Faculty of Mathematics and Computer Science, The Weizmann Institute of Science, 234 Herzl Street, Rehovot 7610001 Israel. Email: achibr@gmail.com}
+\affil[2]{Educational Testing Service, 660 Rosedale Road, Attn: MS-12, Princeton, NJ 08540. Email: olivne@ets.org}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Log of our work on fast multilevel neural networks training algorithms.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Definitions}
+\label{sec:definitions}
+The general optimization problem is to calculate
+$$
+	w^{min} = \argmin f(w)\,,\qquad w = (w_1, w_2,\dots, w_n)\,.
+$$
+Given an iterative solver we will denote by $w^{\infty}$ the solution it converges to, disregarding in the current discussion the question whether $w^{\infty} = w^{min}$. (In fact, with a suitable continuation method, in practice $w^{\infty}$ may anyway be the solution we are actually interested in, not $w^{min}$).
+
+At any iteration, denote the current approximate solution by $w$, the current error by
+\begin{equation}
+	e = e(w) = (e_1, e_2, \dots, e_n) = w - w^{\infty}
+	\label{error}
+\end{equation}
+and the current (true, deterministic) gradient by
+$$
+	g(e) = \left(g_1(e), g_2(e), \dots, g_n(e)\right)\,,\qquad g_i(e) = \frac{\partial f(w)}{\partial w_i} = \frac{\partial f(w)}{\partial e_i}\,.
+$$
+We further denote the current \textbf{Gradient-to-Error Ratio} (GER) by
+\begin{equation}
+	\ger(e) = \frac{\left\| g(e) \right\|}{H \left\| e \right\|}
+	\label{ger}
+\end{equation}
+where $\|\cdot\|$ is the $l_2$ norm and $H$ is a normalization constant chosen such that $\max_e \ger(e) = 1$.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Test Cases}
+\label{sec:test_cases}
+We use MNIST with a small network and focus on understanding SGD slowness and coarsening of a single layer, {\it fc1} with a small number of activations ($144$ inputs).
+
+{\bf TODO: add network architecture here.}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Gradient Descent (GD) and Stochastic GD (SGD)}
+\label{sec:gd}
+
+Each GD iteration is the update
+\begin{equation}
+	w \longleftarrow w - \rho g\left(w\right)\,,
+	\label{gd}
+\end{equation}
+where the ``learning rate'' $\rho$ is a positive hyper-parameter that generally needs to be smaller than $3 / H$ to avoid fast divergence. In practice only an approximation to $g(e)$ is calculated at each GD iteration. The gradient calculation is an inexpensive $O(n)$, highly-parallelizable calculation in many large-scale scientific and engineering problems, where the equations are essentially local, but not so in other problems, including the NN training problem; see below. Since (\ref{gd}) implies that in each iteration
+$$
+	e_{NEW} = e_{OLD} - \rho g\left(e_{OLD}\right)\,,
+$$
+
+Two Slowness factors:
+\begin{enumerate}
+    \item {\it Ill conditioning.} the convergence factor per iteration is
+$$
+	\frac{\left\|e_{NEW}\right\|}{\left\|e_{OLD}\right\|} = 1 - O\left(\ger\left(\left\|e_{OLD}\right\|\right)\right)\,.
+$$
+As observed in all large-scale problems (including NN training), in the first few iterations the GER is $O(1)$, yielding fast initial convergence. But then the GER progressively diminishes, resulting in a dramatic convergence slowdown, requiring a huge number of GD iterations with very small gradients to converge.
+
+\item {\it Stochastic noise.} Furthermore, in many kinds of problems the actual slowness is much worse, because as $\|e\|$ decreases and $\|g(e)\|$ decreases even much more, the work to approximately calculate $g(w)$ at each GD iteration sharply increases, typically proportionally to $\|g(e)\|^{-2}$.
+
+This in particular is the case in NN training, where $g(w)$ is the average of its values over many samples:
+$$
+	g(w) = \frac{1}{M} \sum_{m=1}^M g^m(w)\,,
+$$
+where $g^m(w)$ is the gradient of the $m$-th sample, and where each sample gradient can be calculated in $O(n)$ operations (by back propagation). The number $M$ of relevant samples is huge, so in each GD iteration an approximation to $g(w)$ is generally calculated by averaging over just $M_a$ random samples, $M_a \ll M$.
+
+During the iterations, as the error tends to $0$, the average of each component, $g_i(e) = \frac{1}{M} \sum_{i=1}^M g_i^m(e)$ should tend to $0$, while its variance
+$$
+	\sigma_i^2(e) =  \frac{1}{M} \sum_{m=1}^M \left(g_i^m(w)\right)^2 - g_i(e)^2
+$$
+does not generally decrease much. Hence averaging over $$M_i = O(\sigma_i^2(e) / |g_i(e)|^2)$$ samples is needed in order to get a reasonable approximation to $g_i(e)$, and the equivalent of one GD iteration requires $O(n\|g(e)\|^{-2})$ operations.
+\end{enumerate}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Observing SGD Slowness}
+{\bf Have we actually observed SGD slowness? Should I look at the gradient norm of each layer to measure this? - as we know, it will decrease but then increase during training, unless calming is performed.}
+
+\section{Relaxation}
+\label{sec:relax}
+We would like to design a relaxation scheme that efficiently smooths the error. A sufficient condition is {\it locality}: each relaxation step has a small effect on gradients outside a small neighborhood. Such a relaxation should also require {\it less averaging} because local neighborhoods exhibit only a small number of independent examples, as opposed to many large-scale combinations of those local examples.
+
+We would like to find groups of highly correlated gradients. Each relaxation step can be SGD on a weak eigen-component of each group.
+
+Groups can be defined in terms of activations, since activation cosine distances predict gradient correlations in the corresponding sheaves. So, we are looking for a clustering of the activations into small groups. Each group contains cosine-similar activations, whilst cross-group correlations are small. Grouping is equivalent to adding a layer of activation groups between the input and output activations of a layer.
+
+{\bf How can we find optimal activation groups?} For the sake of study, the algorithm doesn't have to be very fast, since we're studying a layer with a small number of activations.
+
+\subsection{Eigen-relaxation}
+\label{sec:eigenrelax}
+First, we can perform a global SVD (one group). This eliminates all activation cosine similarities: eigen-activations are orthogonal; cf.~App.~\ref{sec:pc}. So it stands to reason that if one orthogonal tranformation $V$ of the activations eliminates similarities, another one can enhance the similarities between the individual activations.
+
+But, maybe we already have a natural grouping using eigen-components: each of them is its own group. A change to one should not change the other eigen-components at all.
+
+This is related to the {\it Fisher scoring algorithm} \cite{fisher_scoring} (incidentally, Fisher worked in psychometrics, where I am currently working). This is a quasi-Newton method:
+\begin{equation}
+    w \longleftarrow w - E[H(w)]^{-1} g\left(w\right)\,,
+\end{equation}
+In \cite{lla}, Fisher scoring is applied to training a single layer at a time (Eq.~(15)). The expected value of the negative Hessian $H(w)$ is usually approximated by the observed variance of the gradient $E[g(w)^2]$ \cite{fisher_tutorial}.
+\begin{equation}
+    w \longleftarrow w - E[g(w)^2]^{-1} g\left(w\right)\,,
+\end{equation}
+In our case we look at gradient variances indirectly via activations. In terms of eigen-components, it means that each eigen-component $k$ should be updated separately and with a different learning rate proportional to $1/\sigma_k^2$, that is,
+\begin{equation}
+    w \longleftarrow w - \frac{\rho}{\sigma_k^2} v_k g\left(w\right)\,,
+    \label{fisher}
+\end{equation}
+where $v_k$ is the $k$th principal component, applied to each output sheaf. If this idea makes sense, we can immediately see that this relaxation changes mostly the {\it weak} components, which is anyway what we want. So we could restrict the scheme to only changing components with sufficiently small $\sigma_k$, ignoring strong components altogether. 
+
+Next, we need to somehow localize our SVD.
+
+\newpage
+
+\appendix
+
+\section{Eigen-Components}
+\label{sec:pc}
+Let $X_{s \times n}$ be a matrix of $n$ activation values over $s$ samples. We call the principal components of $X$ {\it eigen-components}.
+
+The first principle component $y = X v$ maximizes variance, i.e., 
+\begin{equation}
+    \begin{aligned}
+       \max_v\, & E[(X v)^2] = \|X v\|^2_2 \\
+        \text{s.t.}\, & \|v\|^2_2 = 1\,.
+    \end{aligned}
+\end{equation}
+$v$ is the eigenvector corresponding to the maximal eigenvalue of $X^T X$. Similarly, the coefficient vectors of further eigen-components are the other eigenvectors of $X^T X$, i.e., they are the right-singular vectors of $X$. Indeed, let $X = U \Sigma V^T$ be the SVD; then
+\begin{equation}
+    X^T X V = V \Sigma U^T U \Sigma V^T V = V \Sigma^2\,.
+\end{equation}
+Thus, the eigen-components of $X$ are the columns of $Y = X V$.
+
+The coefficient vectors are orthonormal: $V^T V = I$. Eigen-components are orthogonal, because 
+\begin{equation}
+    Y^T Y = V^T X^T X V = \Sigma^2\,.
+\end{equation}
+Thus, the cosine similarity between two eigen-components $y_i, y_j$ is $0$ for $i \not = j$.
+
+\section{Localization}
+\label{sec:localization}
+Different methods of recombining vectors (typically, activation feature vectors) to better localize their clusters.
+
+\subsection{Optimal Rotation to Reduce Spread}
+\label{sec:opt_spread}
+Given a set of points $x_1,\dots,x_n \in \Real^s$ (e.g., activation sample vectors) with $\|x_i\|_2 = 1$, we seek $n$ linear combinations $y_i = \sum_{j=1}^n q_{ij} x_j$ that minimize the spread (average distance from the centroid), are orthogonal and normalized.
+\begin{equation}
+    \begin{aligned}
+       \min_Q\, & f(Q) := \sum_i \left( y_i - \overline{y}\right)^2 \\
+        \text{s.t.}\, & \|y_i\|^2_2 = 1\,, \forall i,
+        \text{and}\, & (q_i, q_j) = 0\,, \forall i \not = j\,,
+    \end{aligned}
+    \label{q_min}
+\end{equation}
+where $\overline{y} = \frac{1}{n} \sum_i y_i$ and $q_i$ is the $i${\it th} column of $Q$. This is a hard computational problem if solved with usual constrained quadratic minimization black-box routines, as there are $O(n^2)$ constraints.
+
+I will consider here for simplicity the normalization constraint $Q^T Q = I$; a modification for the normalization $|y_i\|^2_2 = 1$ would have to be made. Eq.~(\ref{q_min}) is a special case of the problem considered by \cite{qpqc_sgd}. Indeed, since $Y = X Q$, one can rewrite
+$$ f(Q) = \|X Q - \frac{1}{n} X Q u u^T \|_F^2 =
+\|(I - \frac{1}{n} u u^T) X Q\|_F^2 \,, $$
+where $u$ is a vector of $1$'s. Or,
+$$ f(Q) = tr(Q^T X^T (I - \frac{1}{n} u u^T) X Q) = tr(Q^T A Q) $$
+where $A = X^T (I - \frac{1}{n} u u^T) X$ can be calculated in $O(n^2)$ operations. Algorithm~2 in (\ref{q_min}) is a stochastic gradient descent, projected into the space of orthogonal matrices after each step. Suppose even that we use gradient descent; this algorithm costs $O(n^3)$ per iteration, since calculating the projection step (i.e., orthogonalizing the columns of $Q$) requires a QR decomposition, for instance, which costs $O(n^3)$. We don't need to solve to convergence; just a few GD iterations should suffice to reduce $f$ by a significant factor before GD slows down.
+
+If $n$ is large, one could reduce cost by random sampling:
+\begin{enumerate}
+    \item Pick a random sample $\tilde{X}$ of size $m$ of $x$-points.
+    \item Run the projected GD on the sample, obtaining an $m \times m$ rotation $\tilde{Q}$.
+    \item Replace the sample by $\tilde{X} \tilde{Q}$ in the set $X$.
+    \item Repeat steps $1-3$.
+\end{enumerate}
+Since the centroid of a sample is a good approximation to the global centroid of $X$, if the sample is representative and $m$ is large enough, the global centroid will not move much as a result of updating a sample. Picking $m \approx 100$ (or even smaller) should suffice. This algorithm in has linear complexity in $n$, even if we run $O(n / m)$ steps.
+
+\subsection{Formulation with Two Normalization Constraints}
+Let $X_{s \times n}$ be a matrix of $n$ activation values over $s$ samples, or generally, a matrix of points to be clustered in $\Real^s$. The clustering distance between points is the cosine distance; for simplicity, assume that the columns $x_i$ of $X$ are normalized, that is, $\|x_i\|=1$ where $\|\cdot\|$ is the Euclidean norm and $i = 1,\dots,n$.
+
+To tighten the cluster via a localization transformation, we would like to find two orthogonal linear combinations of the points, $y = \sum_i a_i x_i = X a$ and $z = \sum_i b_i x_i = X b$, such that $y$ and $z$ are maximally correlated. That means solving the constrained optimization
+\begin{equation}
+    \begin{aligned}
+       \max_{a,b}\, & \text{corr}(y,z) =  \frac{|y^T z|}{\|y\| \|z\|}\,,\\
+        \text{s.t.}\, & a^T b = 0\,.
+    \end{aligned}
+\end{equation}
+Equivalently, we can constraint the combined points to unit norm. The absolute value can be omitted by solving both the minimization and maximization problem and taking the more extreme value of the two. So, consider
+\begin{equation}
+    \begin{aligned}
+       \max_{a,b}\, & y^T z\,,\\
+        \text{s.t.}\, & a^T b = 0\,, \quad \|y\|^2 = \|z\|^2 = 1\,.
+    \end{aligned}
+    \label{loc1}
+\end{equation}
+Let $C = X^T X$ be the covariance matrix and $C = V D V^T$, where $V$ is the (orthogonal) right singular matrix of $X$ in the SVD $X = U \Sigma V^T$, and $D = \Sigma^2$ is diagonal with the squared singular values $d_{ii} := \sigma_i^2$ on the diagonal. Let $\alpha := V^T a, \beta := V^T b$. Then (\ref{loc1}) is equivalent to
+\begin{equation}
+    \begin{aligned}
+       \max_{\alpha,\beta}\, & f(\alpha,\beta) = \alpha^T D^2 \beta\,,\\
+        \text{s.t.}\, & \alpha^T \beta = 0\,, \quad \|D \alpha\|^2 = \|D \beta\|^2 = 1\,.
+    \end{aligned}
+    \label{loc2}
+\end{equation}
+The Lagrange multiplier optimization is
+\begin{equation}
+    \begin{aligned}
+       \max_{\alpha,\beta,\lambda}\, & g(\alpha,\beta;\lambda) := \alpha^T D^2 \beta
+       + 0.5 \lambda_1 \alpha^T D^2 \alpha + 0.5 \lambda_2 \alpha^T D^2 \beta 
+       + \lambda_3 \alpha^T \beta \,,\\
+        \text{s.t.}\, & \alpha^T \beta = 0\,, \quad \|D \alpha\|^2 = \|D \beta\|^2 = 1\,.
+    \end{aligned}
+    \label{loc_lag}
+\end{equation}
+the normal equations are
+\begin{equation}
+    \begin{aligned}
+       \nabla_{\alpha} g = & D^2 \beta + \lambda_1 D^2 \alpha + \lambda_3 \beta = 0 \,,\\
+       \nabla_{\beta} g = & D^2 \alpha + \lambda_2 D^2 \beta + \lambda_3 \alpha = 0 \,,\\
+        \alpha^T \beta = & 0\,,\\
+        \alpha^T D^2 \alpha = & 1\,,\\
+        \beta^T D^2 \beta = & 1\,.
+    \end{aligned}
+    \label{loc_lag1}
+\end{equation}
+Let $R := (D^2 + \lambda_3 I)^{-1} D^2$. It follows that
+\begin{equation}
+    \begin{aligned}
+       \beta = & \lambda_1 R \alpha\,,\\
+       \alpha = & \lambda_2 R \beta
+       = \lambda_1 \lambda_2 R^2 \alpha \,,\\
+        \alpha^T \beta = & \lambda_1 \alpha^T R \alpha = 0\,,\\
+    \end{aligned}
+    \label{loc_lag2}
+\end{equation}
+Thus $\alpha$ is a null-space vector of $R^2 - \frac{1}{\lambda_1 \lambda_2} I$, or an eigenvector of $R^2$ with eigenvalue $\frac{1}{\lambda_1 \lambda_2}$. Note that $R$ is diagonal with $r_{ii} = d_{ii}^2/(d_{ii}^2 + \lambda_3)$, so (assuming all singular values are different and strictly positive) $\alpha = \frac{1}{d_{ii}} e_i$ for some $i$ (normalized to satisfy the normalization constraint $\|D \alpha\|=1$), and $\lambda_1 \lambda_2 = (1 + \lambda_3/ d_{ii}^2)^2$. 
+
+But then $\alpha$ is also an eigenvector of $R$, and $\beta = (\lambda_1 / |1 + \lambda_3/ d_{ii}^2|0 \alpha$ is proportional to $\alpha$ and cannot be orthogonal to it unless they are both $0$, but that contradicts the normalization constraints.
+
+Eq.~(\ref{loc2}) must have a solution, since the feasible set is compact and non-empty. So, if there is no mistake above and the Lagrange equations have no solution, what is the optimal solution of (\ref{loc2})?
+
+\subsection{Formulation with One Normalization Constraint}
+We would like to find two orthogonal linear combinations of the points, $y = \sum_i a_i x_i = X a$ and $z = \sum_i b_i x_i = X b$, such that $y$ and $z$ are maximally correlated. Assuming the resulting correlation is high (otherwise the localization won't contribute much), we only constrain $y$'s norm, and assume $z$'s norm is similar.
+\begin{equation}
+    \begin{aligned}
+       \max_{y,z}\, & \|y - z\|^2\,,\\
+        \text{s.t.}\, & y^T y = 1\,\quad y^T z = 0.\,.
+    \end{aligned}
+\end{equation}
+In terms of $a$, $b$, 
+\begin{equation}
+    \begin{aligned}
+       \max_{y,z}\, & (a - b)^T C (a - b)\,,\\
+        \text{s.t.}\, & a^T C a = 1\,\quad a^T C b = 0\,.
+    \end{aligned}
+\end{equation}
+where $C = X^T X$ s the covariance matrix. The Lagrange multiplier optimization is
+\begin{equation}
+    \begin{aligned}
+       \max_{a,b,\lambda}\, & g(a,b;\lambda) := 0.5 (a - b)^T C (a - b) + 0.5 \lambda_0 a^T C a +
+       \lambda_1 a^T C b\,,\\
+        \text{s.t.}\, & a^T C a = 1\,\quad a^T C b = 0\,.
+    \end{aligned}
+\end{equation}
+the normal equations are
+\begin{equation}
+    \begin{aligned}
+       \nabla_{a} g = & C(a - b) + \lambda_0 c a + \lambda_1 C b = 0 \,,\\
+       \nabla_{b} g = & C(b - a) + \lambda_1 C a = 0 \,,\\
+        a^T C a = & 1\,,\\
+        a^T C b = & 0\,.
+    \end{aligned}
+\end{equation}
+The first two equations imply that $C b = -(\lambda_0 + \lambda_1)/\lambda_1 C a$, so if $C$ is invertible $b = -(\lambda_0 + \lambda_1)/\lambda_1 a$. But since $a^T C b = 0$, this implies $lambda_0 + \lambda_1 = 0$, and therefore $b = 0$ and $z = 0$, always, $\lambda_0 = 1$, $\lambda_1 = -1$, and $a$ is arbitrary, as long as it's normalized to $a^T C a = 1$. Not what we wanted to accomplish...
+
+\subsection{Recombination to Reduce Cluster Radius}
+\label{sec:reduce_radius}
+Given a set of points $x_1,\dots,x_n \in \Real^s$ (e.g., activation sample vectors in a k-means cluster), we would like to find a normalized linear combination that minimizes the distance to the centroid (cluster center) $c$. In fact, as in an eigenvalue problem, we find multiple combinations that are orthogonal to each other. Let $X_{s \times n}$ be the matrix whose columns are $x_1,\dots,x_n$. Let $A_{n \times k}$ be a matrix whose columns are $\alpha_1,\dots,\alpha_k$, the coefficient vectors of $k$ previously-found combinations that are mutually orthogonal. We would like to find a coefficient vector $\alpha \in \Real^n$ such that 
+\begin{equation}
+    \begin{aligned}
+       \min_{\alpha}\, & \left\| X \alpha - c \right\|_2^2 \\
+        \text{s.t.}\, & \|\alpha\|^2_2 = 1\,, \qquad A^T \alpha = 0\,.
+    \end{aligned}
+    \label{reduce_radius_min}
+\end{equation}
+
+This can be solved using the SVD similarly to the algorithm \cite[pp.582--583]{GoluVanl96}. Let $X = U \Sigma V^T$ be the SVD decomposition of $X$. 
+\begin{equation}
+    \begin{aligned}
+       \min_{\alpha}\, & \left\| U \Sigma V^T \alpha - c \right\|_2^2 
+       = \left\| \Sigma V^T \alpha - U^T c \right\|_2^2 
+       = \left\| \Sigma y - b \right\|_2^2 \\
+        \text{s.t.}\, & \|y\|^2_2 = 1\,, \qquad B^T y = 0\,,
+    \end{aligned}
+    \label{reduce_radius_min2}
+\end{equation}
+where $y := V^T \alpha$, $b := U^T c$, $B := V^T A$. (\ref{reduce_radius_min2}) can be solved by Lagrange multipliers:
+$$ \min_{\alpha,\lambda, \mu} \frac12 \left\| \Sigma y - b \right\|_2^2 + \frac12 \lambda \left( \|y\|^2_2 - 1 \right) +
+\mu^T B^T y\,.$$
+The normal equations are
+$$ \Sigma^2 y - \Sigma b + \lambda y + B \mu = 0\,,$$
+and solving for y,
+$$ y = \left( \Sigma^2 + \lambda I \right)^{-1} \left( \Sigma b 
+ - B \mu\right)\,.$$
+Substituting into the orthogonality constraint, we get
+$$ B^T \left( \Sigma^2 + \lambda I \right)^{-1} \left( \Sigma b 
+ - B \mu\right) = 0\,,$$
+thus
+$$ \mu = \left( B^T \left( \Sigma^2 + \lambda I \right)^{-1} B \right)^{-1} B^T \left( \Sigma^2 + \lambda I \right)^{-1} \Sigma b\,. $$
+Now we can express $y$ in terms of $\lambda$ only,
+\begin{equation}
+\begin{aligned}
+y(\lambda) = & \left( \Sigma^2 + \lambda I \right)^{-1} \left( \Sigma b 
+ - B \left( B^T \left( \Sigma^2 + \lambda I \right)^{-1} B \right)^{-1} B^T \left( \Sigma^2 + \lambda I \right)^{-1} \Sigma b \right) \\
+      & = \left( I - B \left( B^T \left( \Sigma^2 + \lambda I \right)^{-1} B \right)^{-1} B^T\right) \left( \Sigma^2 + \lambda I \right)^{-1} \Sigma b\,.
+\end{aligned}
+\end{equation}
+$\lambda$ can be found from a root search of the secular function
+\begin{equation}
+    \phi(\lambda) := \|y(\lambda)\|^2 - 1 = 0\,.
+\end{equation}
+
+\bibliographystyle{plain}
+\bibliography{mlnn}
+
+\title{Multilevel Optimization of Neural Networks:
+Work Log}
+
+\end{document}

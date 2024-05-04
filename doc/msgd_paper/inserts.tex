@@ -1,0 +1,320 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Achi's revisions, organized in snippets. Eventually to be integrated
+% into the the main multiscale optimization paper.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass{article} % For LaTeX2e
+%\documentstyle[nips14submit_09,times,art10]{article} % For LaTeX 2.09
+
+%--------------------------------------------------------
+% Packages.\dfrac{•}{•}
+%--------------------------------------------------------
+%\usepackage{nips15submit_e,times}
+\usepackage[toc,page]{appendix}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage{subcaption} 
+\usepackage{mathtools}
+%\usepackage{xcolor}
+%\usepackage{soul}
+\usepackage{graphicx}
+\usepackage[disable]{todonotes}
+\usepackage{changebar}
+%\graphicspath{ {figs/} }
+\newtheorem{theorem}{Theorem}
+\include{aliases}
+\newcommand{\ins}{INSERT}
+
+% Number equations A.1, A.2, etc.
+\counterwithin*{equation}{section}
+\renewcommand{\theequation}{\thesection.\arabic{equation}}
+%--------------------------------------------------------
+% Title.
+%--------------------------------------------------------
+\title{Multi-level Stochastic Optimization and Neural Networks - Snippets}
+% \author{
+% Achi Brandt\\
+% Oren E. Livne \\
+% }
+\date{\today}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Paper starts here.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+
+% \maketitle
+% \tableofcontents
+% \todototoc
+% \listoftodos
+
+%\begin{abstract}
+%\end{abstract}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newpage
+\section{U}
+instead of coarsening and interpolation being inexpensively performed at the activation yard\footnote{grid?}. But at this stage of coarsening it may be OK, since we may assume that the number of parameters is much smaller than their number at previous coarsening stages.
+
+\section{V1}
+\subsection{10.3 The Hebbian Neuroscience Rule}
+Suppose two input activations $a_1$ and $a_2$ are highly correlated. According to the coarsening algorithm in Sec.~\ref{coarsening:8} they will form a two-activation neighborhood at the coarse level ($a^c = Q a$; see Fig.~{2}) will include a linear combination of them $a^c_k = q_1 a_1 + q_2 a_2$. This is exactly the well-known {\it Hebbian rule} in neuroscience: ``cells that fire together wire together``.
+
+``Highly correlated $a_1$ and $a_2$`` means that there exists a normalized linear combination
+$$ r_1 a^m_1 + r_2 a^m_2\,, \quad r_1^2 + r_2^2 = 1 $$
+that is small for all samples $m$\footnote{The superscript $c$ for coarse-level quantity collides with the superscript $m$ for sample. Clarify notation.} The multi-level algorithm extends this rule to larger activation sets (termed ``neighborhoods``), each containing one or multiple\footnote{Rephrased this sentence a little since it was unclear. Please check.} normalized linear combinations that are small (compared with other normalized combinations in the same neighborhood).
+
+Further interesting analogies should be investigated between the multilevel algorithms and system neuroscience. For example, the search for hidden mini-clusters (see Apps.~\ref{G.4, G.5}) is akin to ``recent technological advances that enable large-scale recording of neural activity, [enabling] the discovery of new behavioral variables hidden within neural codes, and even allows using one animal's data to decode another animal's behavior`` \cite{18}. This finding may indicate that the association matrices $T$ can be initialized by knowledge transfers within a continuation process (see App.~\ref{H}).
+
+\section{V2}
+\subsection{10.4 Low Rank Adaptation (LoRA)}
+There is an obvious similarity between a two-level coarsening scheme and a recent technique called Low Rank Adaptation (LoRA) \cite{lora}.
+
+Generally, as discussed in Sec.~\ref{3}, following a proper relaxation (e.g., SGD), the main remaining error (hence the needed correction) resides in a much lower dimensional space. The LoRA approach (without recognizing the real reason for the low dimension) is to {\it learn} the projection of the correction to lower dimension (our $Q$ operator) as part of learning the optimal adaptation of a pre-trained network to any downstream task. A great advantage of this approach compared to our multi-level coarsening method is that it is simpler to understand and implement. On the other hand, the system has the following potential advantages:
+
+\begin{enumerate}
+    \item Our coarsening operator $Q$ is potentially much sparser than LoRA's projection operator $A$, since it coarsens one local neighborhood at a time, while $A$ is a full matrix.\footnote{However, critics will say that modern GPUs are optimized to perform matrix-vector multiplications a lot more efficiently than a sparse matrix multiplication. One might argue that that means we should change GPU architectures, but this might take time. How can we efficiently implement the multilevel algorithm so it gains not just in FLOPs but also in runtime?}
+    \item The locality also implies that $Q$ can be derived based on a much smaller number of examples.
+    \item Our coarse level correction is designed to accelerate the pre-training too, not just the fine tuning.
+    \item Equiped with FAS, our coarse level can itself be corrected by a still coarser level (a correction of still-lower dimension).
+    \item The FAS coarsening may lead to upscaling (see Sec.~\ref{14}), whereupon the heavy pretrained network is discarded, leaving only the much lighter coarse levels, both for post-training and for inference.
+\end{enumerate}
+
+An interesting hybrid possibility is to start with the local-SVD-based $Q$, then improve it as part of the overall optimization by backprojection. This should yield faster learning than starting from a random $Q$.
+
+\section{V4}
+\subsection{10.5 Transformer}
+There are fundamental similarities between the transformer algorithm \cite{transformer} and the multilevel solver.
+
+The multilevel solver's alternation between relaxation (fine-level processing) and coarse-level iterations is similar to the transformer's alternation between attention layers and simple feed-forward networks. An attention layer is similar to a coarse-level correction since it learns and performs {\it collective} changes of correlated activations. The key and query attention matrices are analogous to the transformation $T$ that brings out hidden neighborhoods (see App.~\ref{G4}).
+
+These similarities may actually suggest some useful improvements. The mini-clustering production of neighborhoods (see App.~\ref{G1}) hints to a fast way of summarizing attention over very long context windows. The multi-level construction of the matrix $T$ (see App.~\ref{G5}) suggests faster ways to {\it train} the attention matrices.
+
+\subsection{W}
+$\gamma^m_j(p) = \partial L/\partial \tilde{a}_j(p)$, i.e. correlations between vectors
+$$
+\gamma_j = \left\{ \gamma^m_j(p) \right\}_{m \in \text{batch}, p \in \text{output grid}}\,.
+$$
+Briefly: using mini-clustering (see App.~\ref{sec:miniclustering}) we subdivide the space of vectors $\gamma_j$ into strongly correlated neighborhoods, then using SVD (or economical SVD for large neighborhoods, see Sec.~\ref{?}) we divide each neighborhood into two complementary subspaces: a space of low-noise combinations and one of higher-noise. The low-noise combinations are used for low-noise relaxation, while the higher-noise ones define the coarsening operator $\tilde{Q}$. The coarse level of the layer then read as
+\begin{equation}
+    \tilde{a}^c = W^c a\,,\quad \tilde{a} = \tilde{Q}^T \tilde{a}^c\,.
+    \label{11.1}
+\end{equation}
+The coarse-level processing optimizes $W^c$ by backpropagation, starting with $W^c = 0$ (or with $\hat{W}^c$ approximating $W$ when using FAS). $W^c$ (or $\delta W^c = W^c - \hat{W}^c$ when using FAS) is then interpolated and added to $W$, where the interpolation $\tilde{P}^*$ is defined as corresponding to interpolation designed in the space of vectors $\gamma_j$.
+
+\section{Appendix X: Dependence of Gradient Combination Statistics on Input Activation Statistics}
+\label{sec:x}
+
+{\bf Notation.} In a given layer, at each output point $p$ and for each sample $m$, denote
+\begin{itemize}
+    \item $a^m_i(p)$ = the $i${\it th} post-ReLU {\it input} activation.
+    \item $\gamma^m_j(p)$ = the loss derivative with respect to the $j${\it th} pre-ReLU
+    {\it output} activation.
+    \item $g^m_{ij} = \sum_p a^m_i(p) \gamma^m_j(p)$ = gradient of the weight $w_{ij}$.
+    \item $\overline{[\cdot]^m}$ = averaging the quantity $[\cdot]^m$ over all samples $m$.
+\end{itemize}
+
+{\bf Combinations.} For any normalized vector $\alpha = (\alpha_1, \alpha_2, ...)$, $\sum_i \alpha_i^2 = 1$, we define a normalized combination of the input activations $A^m_{\alpha} = \sum_i \alpha_i a^m_i(p)$ and a corresponding gradient combination
+$$ G^m_{\alpha j} = \sum_i \alpha_i \alpha_i g^m_{ij} = \sum_i \alpha_i \sum_p a^m_i(p) \gamma^m_j(p)\,.$$
+
+{\bf Assumption 1:} during training gradient averages should tend to zero, so we assume $|\overline{\gamma^m_j(p)}| \ll \overline{|\gamma^m_j(p)|}$.
+
+{\bf Averages.} $\overline{G^m_{\alpha j}} = \sum_p \overline{A^m_{\alpha}(p) \gamma^m_j(p)}\,.$
+Since $\gamma^m_j(p)$, and even its sign, may vary arbitrarily, $\overline{G^m_{\alpha j}}$ cannot be estimated from input activation statistics. In contrast, the relative sizes of $\overline{(G^m_{\alpha j})^2}$ and variances of $G^m_{\alpha j}$ can generally be estimated from the input activation statistics, as follows.
+
+{\bf Variance.}
+\begin{equation}
+    \begin{split}
+    \overline{\left(G^m_{\alpha j} - \overline{G^m_{\alpha j}}\right)^2} \approx \overline{\left(G^m_{\alpha j}\right)^2} \\
+     = & \sum_{p, q} \overline{A^m_{\alpha}(p) \gamma^m_j(p) A^m_{\alpha}(q) \gamma^m_j(q)} \\
+     \leq & \frac14 \sum_{p, q} \overline{\left(A^m_{\alpha}(p)^2 + A^m_{\alpha}(q)^2\right)(\left(\gamma^m_j(p)^2 + \gamma^m_j(q)^2\right)}\footnote{Follows from the arithmetic-geometric mean inequality and Lagrange's identity: $abcd \leq ((ac + bd)/2)^2 \leq \frac14 ((ac + bd)^2 + (a d - b c)^2) = \frac14 (a^2 + b^2)(c^2 + d^2).$}\\
+     = & \sum_p \overline{A^m_{\alpha}(p)^2 \cdot \frac12 \sum_q (\left(\gamma^m_j(p)^2 + \gamma^m_j(q)^2\right)}\footnote{I need further explanation on why this inequality and the next one hold.}\\
+     \approx & N_{\text{out}} \sum_p \overline{A^m_{\alpha}(p)^2} \sum_p \overline{\gamma^m_j(p)^2}\,,
+    \end{split}
+    \label{g_var}
+\end{equation}
+where $\approx$ denotes likely comparable sizes. Indeed, dividing both sides by $N_{\text{out}} \sum_p \overline{\gamma^m_j(p)^2}$, they both express some weighted averages of $\sum_p A^m_{\alpha}(p)^2$, only with different non-negative weights.
+
+{\bf Conclusion I.} A gradient combination can generally have large variance (compared with the variance of some other normalized combinations in the same output sheaf) only if the corresponding combination of input activations has a large size (compared to the size of some other activation combinations).
+
+{\bf Conclusion II.} A small error in an interpolation between input activations implies a small error in the corresponding parameter interpolation in every sheaf. To see this, apply the above inequality to the combination expressing the interpolation {\it error}, which is the difference between the interpolant, which is a linear combination of coarse variables, and the target fine-level variable, where each coarse variable is itself a linear combination (the operator $Q$) of fine-level variables.
+
+{\bf Fully-connected layer.} In the special case of a fully connected layer, where there is no out-point ($p$) dependence , the relations are simpler (approximate equality, not {\it in}equality) and extend to {\it co}variances (not just variances) of combinations, as follows.
+
+{\bf Covariance.}
+\begin{equation}
+    \begin{split}
+    \overline{\left(G^m_{\alpha j} - \overline{G^m_{\alpha j}}\right) \left(G^m_{\beta j} - \overline{G^m_{\beta j}}\right)} & \\
+     & \approx \overline{G^m_{\alpha j} G^m_{\beta j}} \\
+     & = \overline{A^m_{\alpha} A^m_{\beta} \left(\gamma^m_j\right)^2} \\
+     & \approx \overline{A^m_{\alpha} A^m_{\beta}} \overline{\left(\gamma^m_j\right)^2}\,,
+    \end{split}
+    \label{g_cov}
+\end{equation}
+because, dividing both sides by $\overline{\left(\gamma^m_j\right)^2}$, both express some weighted average of $A^m_{\alpha} A^m_{\beta}$, only with different non-negative weights.
+
+\section{H. Continuation: Network Initialization and Growth}
+\label{sec:h}
+The present paper is mainly concerned with {\it accelerating the convergence} of iterative solvers using multilevel methods. The minimization problems under consideration (NN optimization in particular) are highly nonlinear and often have many local minima. The iterations' convergence speed and the solution they approach heavily depend on where (or how) they are {\it initialized}.
+
+A popular initialization approach, and the simplest to implement, is to start {\it random}. Usually such a start is far from a solution and requires many iterations to converge. Moreover, a random start for a highly nonlinear problem, even when by chance successful, would often lead to wrong or unhealthy solution, e.g., the obtained network would not be generalizable enough and would show high sensitivity to slight data perturbations.
+
+Generally, at high nonlinearity, a desired solution can be reliably obtained only if we start from a close-enough first approximation. In many areas of scientific computation, a common way to obtain a good first approximation (and trace sequences of solutions) is by the method of {\it continuation} (also called ``embedding`` or ``Davidenko method''; see for example \cite{keller77}). Namely, a sequence of auxiliary problems is formulated, starting from an easily solvable (e.g., linear) problem and gradually increasing its complexity all the way to the desired problem, such that the (approximate) solution of each problem in the sequence is a good initial guess for the next problem\footnote{reworded this sentence since it was a bit cumbersome; see if you like it.}. The sequence of auxiliary problems in fact {\it defines} which solution we are interested in, {\it even when it is not the lowest minimum} of the formal objective functional. A {\it multilevel} solver integrated with a continuation process may in fact be essential for a good {\it definition} of the desired solution (see example in \cite{SafRon}).
+
+The continuation process need not be expensive, since for dragging the system to the desired attraction basic it may be sufficient so only solve each auxiliary problem very crude, leaving the bulk of computation to the high-accuracy final stage.
+
+The continuation approach is in fact already largely implemented in Neural Network computations, e.g., under the name ``knowledge transfer'' or ``downstream tasks``, initialized by a pre-trained foundation model. But continuation can of course be applied to the pre-training itself.
+
+Choosing for example the objective of pre-training to be the identification when two given images are two different views of the same object or scene, one can start with the easy case that the two images are adjacent video frames, and gradually develop the network to deal with increasingly longer time intervals between the frames \footnote{Simplified sentence, see what you think.}. One can start with only few different objects in the database, perhaps even just one object (like a baby starting by recognizing just his/her mother's face), and gradually increase the number of objects. Similarly, one can gradually increase the number of moving parts of objects, or the noise level, occlusion, distortions, etc. and then introduce object classes and other distinctions of interest.
+
+As the sequence of problems unfolds, the NN architecture can, and should, adapt itself, typically adding more channels, more layers, denser resolutions, wider kernels (see Sec.~\ref{sec:13}), or wider attention context windows, more speciality sub-networks (see Sec.~\ref{sec:15.7}), or stronger localization procedures (see Sec.~\ref{sec:5.4}) -- where and when needed.
+
+A multilevel structure can be particularly useful here, as many continuation steps can be confined to coarse levels, with rare visits to finer ones to update the fine-to-coarse defect correction (see Sec.~\ref{sec:?}). Parameter {\it relations} (like those involved in coarsening) can be more suitable for knowledge transfer than the parameters themselves.
+
+Furthermore, one organic mode of architecture adaptation during continuation can emerge from the multilevel solver: the latter typically introduces {\it fixed} coarsening layers (like $Q$ in Fig.~\ref{fig:2}); then, with more incoming data later in the continuation sequence, these layers can be {\it ``unfrozen''} to become regular {\it learned} layers.
+
+\section{Z}
+For a {\it deterministic} {\it linear} system of equations, $Ax = b$, producing low-GER test functions is quite straightforward: just apply your relaxation iterations to the homogeneous equation $Ax = 0$, starting from a random initial approximation $x$. When the iteration slows down the current approximation (which is also the current error $e$, since the solution is $0$) is an example of a {\it relaxed} error, a lower-GER error. Starting with another random error, another low-GER example is produced; and so on. To produce examples with still-lower GER (if needed), apply the to homogeneous equation not just your relaxation, but your current multilevel cycles.
+
+For the deterministic {\it nonlinear} system $A(x) = b$ one can apply the same procedure to the system $A(y) = A(x_0)$, where $x_0$ is the current approximate solution and $y = x_0 + e$, $e$ being initially a random perturbation. The initial as well as all subsequent-iteration residuals $A(x_0) - A(y)$  throughout this procedure should be large compared with $b - A(x_0)$, the current residual, for the procedure to produce a good example of a relaxed error. Also, the iterations should converge $y$ to $x_0$, which is not always guaranteed in nonlinear systems. So the procedure is quite limited in producing high-accuracy examples of relaxed errors. Still, it should be adequate for producing reasonable first approximations to $P$ and $Q$ \footnote{Why?}. And in the stochastic case, good initial coarsening is provided by the sequence of samples described in Sec.~\ref{sec:5.5}. Then, to get more or higher-accuracy examples, one can generally use the following steps.
+
+\section{A1}
+{\bf Local and non-local equations.} Very efficient multilevel solvers (multigrid (MG) and Algebraic Multigrid (AMG) solvers) were traditionally developed for problems whose equations are {\it local} (except possibly for some ``global conditions''). A local equation $\phi_i(x)=0$ is one which involves few unknowns $_j$, all located in a small neighorhood in a low dimensional space (usually the physical space). Discretized linear and nonlinear differential equations (in particular Partial Differential Equations (PDEs)) are the prime examples of such problems. Particle systems with only local interactions is another example. Such problems are typically solved by MG or AMG in just few {\it ``work units''}, where a work unit is the amount of computer operations required to express all the equations. The hierarchy of levels employed by such solvers is related to a hierarchy of spatial scales: the higher the level, the latarget its spatial scale (or the average distance between variables) in each of its equations, while the equations are still local {\it at that scale} (each involving only few neighboring variables of that level).
+
+Many problems defined in the physical (or other low-dimensional) space, even when their equations are {\it not} local (such as discretized {\it integral} equations, or particle systems with long-range (e.g., electrostatic) forces) can still enjoy fast multilevel solvers by using at each level {\it salient variables} (e.g., differences of the original variables) in terms of which the equations are {\it essentially local}, i.e. dependence on distant variables decays fast with their distance. For such problems, the great efficiency of the multilevel solver is the product of two different components:
+\begin{enumerate}
+    \item[(1)] {\bf Fast residual evaluation:} even though the original matrix of $n$ equations (the Hessian in nonlinear systems) is a full $n \times n$ matrix, approximately evaluating all $n$ residuals (gradients of the optimization objective) can cost only $O(n)$ computer operations when done in terms of the salient variables.
+    \item[(2)] {\bf Rapid convergence} of the multilevel solvers, like those applicable to local equations.
+\end{enumerate}
+To extend the multilevel methodology to problems {\it not} defined in a low dimensional space (including the Neural Network optimization problems) an extended definition of locality\footnote{This is a much more common term than ``localness''.} is introduced, based on certain correlations between variables, as explained below (see Secs.~\ref{sec:5.2}, \ref{sec:?}).
+
+For the sake of clarity, we introduce the basics of multilevel for deterministic as well as stochastic optimization problems, using a description that strictly applies to problems with local equations, deferring modifications (salient variables, generalized locality) to where they are needed.
+
+{\bf General idea.}
+
+\section{B1}
+\begin{enumerate}
+    \item The larger the model (having more parameters) the slower {\it per parameter} is its {\it training} (having many more iterations, each going through all the parameters).
+    \item Large models require much more computational resources that generate very significant carbon footprint.
+\end{enumerate}
+
+\section{B2}
+biennial Copper Mountain Conferences on Multigrid Methods, the annual Algebraic Multigrid Summits, the European Conference on Multigrid Methods, and more).
+
+\section{B3}
+serve as a simple introduction to the multigrid and AMG underlying ideas. The presentation is from a more general point of view than the traditional multigrid presentation in which the coarsening (approximating the error on a coarse grid) has always been based on the {\it smoothness} of the error, rapidly obtained by few relaxation (gradient descent) passes. Instead of smoothness, more general correlations between neighboring parameters are used to construct a lower dimensional approximation to the post-relaxation error function. This allows extending the methodology
+
+\section{B}
+The prime examples of this principle are {\it multigrid (MG) algorithms} for solving Partial Differential Equations (PDEs) discretization on structured grids \cite{?} and their extension to {\it Algebraic Mutigrid (AMG) algorithms} for for solving similar problems on unstructured graphs (see for example \ins{B2})
+
+The slowness observed in most iterative solvers of large-scale scientific and industrial problems has much in common with the one typically removed by multigrid and AMG algorithms. But for multiple reasons a lot of these problems cannot be treated by traditional MG/AMG methods. (See in particular in Sec.~\ref{sec:6.1} below a list of such reasons in case of the NN optimization problem.) This has motivated new extensions of the AMG methodology, enabling potential applications to many new areas.
+
+The general principles of these extensions are described in {\it Part I} of this article. Their possible application to NN optimization are then outlined in {\it Part II}.
+
+\section{1.2 Main Concepts}
+Part I of this article can first of all \ins{B3-B8}
+
+\section{B4}
+to more general classes of linear and nonlinear problems, including problems with non-local equations, optimization problems with no explicit system of equations, indefinite problems, particle and macro-molecular problems, neural networks, and more.
+
+Relative to the established multigrid and AMG algorithms, the main general-principle innovations (presented mostly in Part I, and also in Sec.~\ref{sec:16} and some appendices) are the following:
+\begin{enumerate}
+    \item[(1)] Defining parameters as {\it neighbors} is based on their strong correlations over a set of examples (test functions obtained by relaxation) rather than on their geometric or graph-based proximity. A new general {\it ``mini-clustering''} algorithm can be more generally used to partition the set of parameters into many (usually small)\footnote{Omitted close as small already implies small radius.} {\it neighborhoods}. The neighborhoods can then similarly be mini-clustered\footnote{Why do we need to keep mini-clustering neighborhoods? Doesn't the first mini-clustering algorithm already give us all levels of neighborhoods as it's working its way top-down?} into neighborhoods of neighborhoods, and so on, creating hierarchical {\it multilevel neighborhoods}.
+    \item{[2]} Defining the coarse-level variables in terms of local Singular Value Decomposition ({\it local SVD}), with possibly several (instead of just one) coarse variables being combined to represent each neighborhood. For large neighborhoods, a particularly {\it economical\footnote{Seems more on-point than cheap here.} SVD} variant is introduced. \ins{B5a}
+    \item{[3]} In case of {\it stochastic} optimization, each SVD is applied to a matrix of the gradients of a neighborhood for a batch of independent samples. It provides a transformation of the neighborhood parameters into a new set of variables that can be split into two subsets: a subset of high-variance variables that will serve as the next-coarser-level variables, and a complementary subset of lower-variance variables that allows fast relaxation (needing only short averaging).
+    \item{[4]} {\it Data efficiency.} Since at each scale the multiscale (deterministic or stochastic) solver the coarsening can be designed to be {\it essential local} (at that scale), it can be guided by relatively few training examples. Each global example supplies {\it many} local examples.
+    \item{[5]} {\it Memory efficiency.} In the case that the input data is a long sequence of vectors (scalars being a special case), it may be enough to store the difference of each vector from the center of its neighborhood, then similarly store the difference of each center from the center of the higher-level neighborhood to which it belongs, etc. These differences can be represented at much lower relative accuracy, using quantization and random projections to lower-dimensional vectors (see App.~\ref{sec:G}).
+    \item{[6]} {\it Hidden neighborhoods} can be discovered based on transformed sets of variables. They are as important as the plain neighborhoods for the purposes of solver acceleration through coarsening, data efficiency, memory efficiency and upscaling. 
+    \item{[7]} {\it Upscaling} is a process in which the fine level of a multilevel solver is used to train a coarser level to be an independent representation of the system, no longer depending on interacting with the fine-level details by retaining the fine-level accuracy in features of interest (see Sec.~\ref{sec:upscaling}). Sequentially employing several levels of upscaling leads to very economic high-level representations and processing of systems.
+    \item{[8]} A {\it mock cycle} is a general approach for {\it quantitative performance prediction}\footnote{missing end of sentence, perhaps add ``of solver efficiency''}, which can be very helpful in building and debugging the solver. It is much more gerneral and more accurate than the traditional multigrid performance prediction by smoothing-rate analysis (see Sec.~\ref{sec:7}). 
+\end{enumerate}
+We call this general extended methodology AMG+, since it can be regarded as an extension of AMG. Due to its generality it can be applied to many important scientific and industrial optimization and stochastic optimization, with possible extensions to macro-molecular dynamics and more. Each new type of application would require its own understanding of locality, clustering, coarsening, levels/scales and high-level concepts.
+
+In Part II we outline in detail how this methodology (needing all the innovations listed above) can be applied to the training of {\it Neural Networks}. A leading concept here is the organization of neighborhoods of the parameters (weights) in each layer in correspondence to neighborhoods of the input activations. This significantly simplifies the implementation of coarsening and interpolations, and yields a coarse-level network similar in structure to the fine level, allowing self-similar derivations of still-coarser levels. Some other types intra-layer coarsening are also briefly discussed, as well as inter-layer coarsening in which the number of layers is roughly halves at each coarsening level.
+
+In Sec.~\ref{sec:15} we summarize the {\it potential benefits} of developing AMG+ for neural networks. Note that all the major steps of the algorithms are {\it highly parallelizable}.
+
+In Sec.~\ref{sec:10} we note an existence of an element of coarsening in several popular NN techniques (batch normalization, dropouts, LoRA and transformer) and in neuroscience finding (the Hebbian rule), which can help explain their effectiveness. We discuss existing relations with our approach, and point out some possible improvement to those techniques suggested by these relations.
+
+\section{C1}
+The intra-level processing at each of the levels of this hirerachy is called {\it relaxation} (GD or SGD is one possible choice of relaxation). A {\it cycle} for approximately solving the equations at each level (except the coarsest) is composed of relaxation steps, followed by transfering the current gradients to the next-coarser level; then the coarse-level solution {\it changes} based on these transferred gradients and interpolated and {\it added} as a correction to the current fin-level approximation; whereas the coarse level solution itself is recursively calculated by one or two {\it coarse-level cycles}, except the {\it coarsest level}, which is approximately solved just by relaxation.
+
+Even for non-local equations (like NN optimization), at least to a certain degree, the relaxation at each level should achieve only local convergence (local to that level), hence each of its gradients can be estimated based on relatively few samples. This fact can
+
+\section{C0}
+The variables of each coarser level stand for certain averages of the next finer-level variables, and their gradients are correspondingly averages of the next-finer-level gradients.
+
+\section{C2}
+performs several relaxation step (e.g., GD iterations) at each of the levels (subspaces)
+$$ W = W_{\gamma_0}, W_{\gamma_1}, \cdots, W_{\gamma_L} $$
+with appropriate information transfers between the levels.
+
+\section{D1}
+In fact, in some important cases, just {\it one} cycle is needed to {\it adequately} solve the equations, e.g., to solve a discretized PDE to error smaller than the discretization error (assuming the initial approximation is obtained by solving the discretized equations at a coarser/simpler grid; see Sec.~\ref{sec:7} in \cite{4}).
+
+\section{D2}
+construction of these subspaces (their variables and their equations) and the inter-level information transfers is the main subject of this whole article.
+
+The general approach for constructing the coarse-level {\it variables} (approximating the fine-level {\it error}) and the coarse-to-fine interpolation (providing the correction {\it added} to the current fine-level solution) is described in the following subsections. The definition of the coarse-level equations is discussed in Sec.~\ref{sec:6}. These equations are solved recursively, i.e., by relaxation and corrections from the next-coarser level.
+
+\section{E}
+We show below that some popular training acceleration techniques can be interpreted as vastly simplified special cases of collective-motion coarsening steps. They attest to the fact that even a very partial coarsening can significantly improve performance. We also point out that at least some simple coarsening steps are known to occur biologically.
+
+\section{E1}
+(Generally,correlations between variables (or between gradients) converge much sooner than the variables (or gradients) themselves.)
+
+\section{E2}
+Similarly, the fine-tuning of a pre-trained model to a new task may be mostly confined to the coarse levels of the pre-trained model.
+
+\section{E3}
+\begin{itemize}
+    \item By systematically separating in each level at each layer the higher-noise from the low-noise and the lower-RER from the high-RER components, the multilevel cycles can eliminate the main resources of slowness inherent in current SVD optimizers. The cycles are highly parallelizable. Even though the gain in wall clock speed may be partly offset due to hardware considerations, the energy savings are likely to still fully reflect the bug reduction in operation count.
+\end{itemize}
+
+\section{E4}
+\subsection{15.6 Memory Efficiency}
+The organization of input activations and weights in mini-clusters allow storing only their differences from cluster centers, which can be done in a relatively lower accuracy, resulting in large store savings via quantization and low-dimensional projections (see App.~\ref{G.3}).
+
+\section{F1}
+\subsection{6.1 Non-uniform Noise}
+In the case that the sampling noise is nearly uniform (i.e., the variance $\sigma^2$ has comparable values for all components), a conventional multigrid-like training algorithm can treat the two problematic aspects of the stochastic ill-conditioning: first, it can apply only a small number of updates at the fine level (using $O(\mu^2/sigma^2)$ minibatch sizes, where $\mu$ is the current target accuracy),
+
+\section{F2}
+Often, however, the real problem is the non-uniformity of the noise, where some high-$\lambda$ components may be very noisy (having much larger $\sigma^2$ than others), forcing small $\varepsilon$ in (\ref{eqn:A.7)}. Therefore, the stochastic multilevel algorithm starts with separating low noise from higher noise (see Sec.~\ref{sec:5.6}).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Bibliography.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\bibliography{msgd}
+\end{document}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
