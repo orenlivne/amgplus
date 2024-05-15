@@ -203,35 +203,28 @@ For the sake of clarity, we introduce the basics of multilevel for deterministic
     \item Large models require much more computational resources that generate very significant carbon footprint.
 \end{enumerate}
 
-\section{B2}
-biennial Copper Mountain Conferences on Multigrid Methods, the annual Algebraic Multigrid Summits, the European Conference on Multigrid Methods, and more).
-
-\section{B3}
-serve as a simple introduction to the multigrid and AMG underlying ideas. The presentation is from a more general point of view than the traditional multigrid presentation in which the coarsening (approximating the error on a coarse grid) has always been based on the {\it smoothness} of the error, rapidly obtained by few relaxation (gradient descent) passes. Instead of smoothness, more general correlations between neighboring parameters are used to construct a lower dimensional approximation to the post-relaxation error function. This allows extending the methodology
-
 \section{B}
-The prime examples of this principle are {\it multigrid (MG) algorithms} for solving Partial Differential Equations (PDEs) discretization on structured grids \cite{?} and their extension to {\it Algebraic Mutigrid (AMG) algorithms} for for solving similar problems on unstructured graphs (see for example \ins{B2})
+The prime examples of this principle are {\it multigrid (MG) algorithms} for solving Partial Differential Equations (PDEs) discretization on structured grids \cite{?} and their extension to {\it Algebraic Mutigrid (AMG) algorithms} for for solving similar problems on unstructured graphs (see for example the biennial Copper Mountain Conferences on Multigrid Methods, the annual Algebraic Multigrid Summits, the European Conference on Multigrid Methods, and more.)
 
 The slowness observed in most iterative solvers of large-scale scientific and industrial problems has much in common with the one typically removed by multigrid and AMG algorithms. But for multiple reasons a lot of these problems cannot be treated by traditional MG/AMG methods. (See in particular in Sec.~\ref{sec:6.1} below a list of such reasons in case of the NN optimization problem.) This has motivated new extensions of the AMG methodology, enabling potential applications to many new areas.
 
 The general principles of these extensions are described in {\it Part I} of this article. Their possible application to NN optimization are then outlined in {\it Part II}.
 
 \section{1.2 Main Concepts}
-Part I of this article can first of all \ins{B3-B8}
+Part I of this article can first of all serve as a simple introduction to the multigrid and AMG underlying ideas. The presentation is from a more general point of view than the traditional multigrid presentation in which the coarsening (approximating the error on a coarse grid) has always been based on the {\it smoothness} of the error, rapidly obtained by few relaxation (gradient descent) passes. Instead of smoothness, more general correlations between neighboring parameters are used to construct a lower dimensional approximation to the post-relaxation error function. This allows extending the methodology
 
-\section{B4}
 to more general classes of linear and nonlinear problems, including problems with non-local equations, optimization problems with no explicit system of equations, indefinite problems, particle and macro-molecular problems, neural networks, and more.
 
 Relative to the established multigrid and AMG algorithms, the main general-principle innovations (presented mostly in Part I, and also in Sec.~\ref{sec:16} and some appendices) are the following:
 \begin{enumerate}
     \item[(1)] Defining parameters as {\it neighbors} is based on their strong correlations over a set of examples (test functions obtained by relaxation) rather than on their geometric or graph-based proximity. A new general {\it ``mini-clustering''} algorithm can be more generally used to partition the set of parameters into many (usually small)\footnote{Omitted close as small already implies small radius.} {\it neighborhoods}. The neighborhoods can then similarly be mini-clustered\footnote{Why do we need to keep mini-clustering neighborhoods? Doesn't the first mini-clustering algorithm already give us all levels of neighborhoods as it's working its way top-down?} into neighborhoods of neighborhoods, and so on, creating hierarchical {\it multilevel neighborhoods}.
-    \item{[2]} Defining the coarse-level variables in terms of local Singular Value Decomposition ({\it local SVD}), with possibly several (instead of just one) coarse variables being combined to represent each neighborhood. For large neighborhoods, a particularly {\it economical\footnote{Seems more on-point than cheap here.} SVD} variant is introduced. \ins{B5a}
+    \item{[2]} Defining the coarse-level variables in terms of local Singular Value Decomposition ({\it local SVD}), with possibly several (instead of just one) coarse variables being combined to represent each neighborhood. For large neighborhoods, a particularly {\it economical\footnote{Seems more on-point than cheap here.} SVD} variant is introduced.
     \item{[3]} In case of {\it stochastic} optimization, each SVD is applied to a matrix of the gradients of a neighborhood for a batch of independent samples. It provides a transformation of the neighborhood parameters into a new set of variables that can be split into two subsets: a subset of high-variance variables that will serve as the next-coarser-level variables, and a complementary subset of lower-variance variables that allows fast relaxation (needing only short averaging).
     \item{[4]} {\it Data efficiency.} Since at each scale the multiscale (deterministic or stochastic) solver the coarsening can be designed to be {\it essential local} (at that scale), it can be guided by relatively few training examples. Each global example supplies {\it many} local examples.
     \item{[5]} {\it Memory efficiency.} In the case that the input data is a long sequence of vectors (scalars being a special case), it may be enough to store the difference of each vector from the center of its neighborhood, then similarly store the difference of each center from the center of the higher-level neighborhood to which it belongs, etc. These differences can be represented at much lower relative accuracy, using quantization and random projections to lower-dimensional vectors (see App.~\ref{sec:G}).
     \item{[6]} {\it Hidden neighborhoods} can be discovered based on transformed sets of variables. They are as important as the plain neighborhoods for the purposes of solver acceleration through coarsening, data efficiency, memory efficiency and upscaling. 
     \item{[7]} {\it Upscaling} is a process in which the fine level of a multilevel solver is used to train a coarser level to be an independent representation of the system, no longer depending on interacting with the fine-level details by retaining the fine-level accuracy in features of interest (see Sec.~\ref{sec:upscaling}). Sequentially employing several levels of upscaling leads to very economic high-level representations and processing of systems.
-    \item{[8]} A {\it mock cycle} is a general approach for {\it quantitative performance prediction}\footnote{missing end of sentence, perhaps add ``of solver efficiency''}, which can be very helpful in building and debugging the solver. It is much more gerneral and more accurate than the traditional multigrid performance prediction by smoothing-rate analysis (see Sec.~\ref{sec:7}). 
+    \item{[8]} A {\it mock cycle} is a general approach for {\it quantitative performance prediction}\footnote{missing end of sentence, perhaps add ``of solver efficiency''}, which can be very helpful in building and debugging the solver. It is much more general and more accurate than the traditional multigrid performance prediction by smoothing-rate analysis (see Sec.~\ref{sec:7}). 
 \end{enumerate}
 We call this general extended methodology AMG+, since it can be regarded as an extension of AMG. Due to its generality it can be applied to many important scientific and industrial optimization and stochastic optimization, with possible extensions to macro-molecular dynamics and more. Each new type of application would require its own understanding of locality, clustering, coarsening, levels/scales and high-level concepts.
 
@@ -287,12 +280,346 @@ In the case that the sampling noise is nearly uniform (i.e., the variance $\sigm
 \section{F2}
 Often, however, the real problem is the non-uniformity of the noise, where some high-$\lambda$ components may be very noisy (having much larger $\sigma^2$ than others), forcing small $\varepsilon$ in (\ref{eqn:A.7)}. Therefore, the stochastic multilevel algorithm starts with separating low noise from higher noise (see Sec.~\ref{sec:5.6}).
 
+\section{I}
+The ratio $n_{\gamma}/n$ is called the Coarsening Ratio (CR). As explained above, a short relaxation process at the fine level makes it possible to coarsen the fine-level error function with a small CR and small ERR. For problems with local equations, this relaxation is local, so the coarsening operator $Q$ can also be local. So instead of the global SVD described above, we may rather use {\it local SVD}, done separately in subsets of neighboring parameters, one subset ({\it ``neighborhood''}) at a time.
+
+For systems of local equations, such as discretized PDEs, proximity\footnote{``neighborness`` is unclear.} is usually defined by the system graph, i.e., neighbors are variables that appear in the same equation (possibly plus neighbors of neighbors, etc.). But even for discretized PDEs, this definition is not general enough and sometimes inadequate (defining as neighbors parameters that should not be coarsened together). For the purpose of coarsening, a more general definition that is adequate for local as well as non-local equations, should be tied to the relaxation process (specifically to the low-GER errors produced by it), as follows.
+
+\section{K0}
+(We discuss below the partition to neighborhoods and the case where the neighborhoods cannot be small.)
+
+\section{K1}
+The partition into neighborhoods can be done in various ways, but should satisfy the following rule. The local SVD of nearly every neighborhood should yield a moderately small CR (e.g., $CR_{\text{local}} \leq 0.5$) for small REE (e.g., $\rho_{\text{local}} \leq 0.4$) so as to obtain a small overall coarsening ratio (e.g., $CR_{\text{global}} \leq 0.7$; the smaller the better of course) while ensuring reasonably good coarsening accuracy. $\rho_{\text{local}}$ need not be very small because, as soon as the overall set of coarse variables is sufficiently representative, high-accuracy interpolation can be obtained as described in Sec.~\ref{sec:5.3}.
+
+Restricted by this rule (small $CR_{\text{local}}$ for small $REE_{\text{local}}$), we want every neighborhood to have as few members as possible. This is needed for the sake of coarsening sparsity (sparse $Q$). Even more important, the smaller the neighborhood the smaller the number $K$ of test vectors required to make its local SVD representative sufficient. (Notwithstanding, see Sec.~\ref{sec:5.4} regarding inexpensive SVD in case the neighborhood is not small enough.)
+
+\section{K2}
+There is still a lot of freedom in constructing the neighborhoods, a process also called {\it localization} or {\it aggregation}. Usually one starts with partitions natural to the problem (like uniform partitions of uniform grids), possibly followed by subdividing them by other methods. One general top-down/bottom-up method is the Recursive Miniclustering (RMC) algorithm described in App.~\ref{sec:miniclustering}. In the case of NN optimization, much simplification and efficiency is obtained by showing that the aggregation of parameters can be performed in terms of aggregation of activations (see Sec.~\ref{sec:8}). The final quality of the coarse variables (chosen for each neighborhood by the local SVD) is judged by the Mock Cycle described in Sec.~\ref{sec:7.3}.
+
+\section{K3}
+Situations are likely to arise where no good and small enough neighborhood can be found but a slowing down of the relaxation convergence indicates that such neighborhoods should exist and come into view upon suitable transformations (linear recombinations) of variables. It is important to seek out such transformations not only for the purpose of solver acceleration, data efficiency and memory savings (explained in Sec.~\ref{sec:8.3}); neighborhoods (hidden or not) also enable upscaling (see Sec.~\ref{sec:upscaling}), which can reveal higher ``concept`` of the system. A possible approach for hunting for the hidden neighborhood is outlined in App.~\ref{sec:G.4}.
+
+\section{L}
+(See also in Sec.~\ref{sec:5.6} another interpretation to this coarsening $Q^T$). The ratio
+\begin{equation}
+    \rho = \rho_{\gamma} = \frac{\|E^k - P Q E^k \|^2_F}{\|E^k\|^2_F} =
+    \frac{\sum_{i=n_{\gamma}+1}^n e_i^2}{\sum_{i=1}^n e_i^2}
+    \label{ree}
+\end{equation}
+is called the Relative Energy Error (REE).
+
+Unfortunately,
+
+\section{M1}
+\subsection{5.4 Economical Approximate Local SVD}
+If the obtainable neighborhood is not small enough (and one cannot reduce its size and still get a small CR for a small REE), then full calculation of the $\text{SVD}_{\text{local}}$ may become too costly. But full $\text{SVD}_{\text{local}}$ calculation is not really needed. For obtaining comparably efficient coarsening it is sufficient to derive a set of coarse variables that approximately span the same space spanned by the SVD coarsening.
+
+As an example, for a neighborhood $B$ let $E^k_B \in \Real^{|B| \times k}$ be the matrix whose SVD we want to crudely approximate (i.e., $E^k_B$ is composed of the $|B|$ rows of $E^k$ corresponding to $B$). Then the rows of the local coarsening matrix $Q_B$ are the $l_B$ highest eigenvectors of the matrix $A_B = E^k_B (E^k_B)^T$, where $CR_B = l_b/|B|$ is the local coarsening ratio. The space spanned by these $l_B$ eigenvectors can be approximated by
+$$ \text{span}\left\{u_1, u_2, \cdots, u_{l_B} \right\}\,,$$
+where
+\begin{equation}
+    u_i = \left(lambda_1 I - A\right) \left(lambda_2 I - A\right) \cdot \left(lambda_q I - A\right) r_i\,,
+    \label{ui}
+\end{equation}
+$(r_1, r_2, \cdots, r_{l_B})$ being independent random zero-mean vectors, and the set $(\lambda_1, \lambda_2, \cdots, \lambda_q)$ is spread over most of the interior of the range of {\it low} eigenvalues (corresponding to the eigenvectors that should {\it not} be included in the coarse level).\footnote{Why not just use $\lambda_i \equiv 0$, i.e., the power method?}\footnote{How do you estimate the range of low eigenvalues? I suppose using the mock cycle, checking which value gives good convergence} The number of multiplications $q$ need not be large ($q = 15$, say, should usually suffice). One can replace the set $(u_1, u_2, \cdots, u_{l_B})$ by an orthonormal set using the Gram-Schmidt process\footnote{The modified Gram-Schmidt (MGS) process is a small modification that can numerically stabilize the Gram-Schmidt process and produce smaller errors in finite-precision arithmetic.}
+
+For the CGD relaxation (see Sec.~\ref{sec:5.5}) one can use the directions $(\bar{u}_1, \bar{u}_2, \cdots, \bar{u}_{|B|})$\footnote{Should this not be $l_B$ instead of $|B|$?} defined similarly to (\ref{ui}), except that the set $(\lambda_1, \lambda_2, \cdots, \lambda_q)$ should now be spread over most of the range of the $l_B$ {\it highest} vectors.
+
+A good set of hyperparameters $(l_B, q, \left\{\lambda_i\right\}_i)$ can be identified using the Mock Cycle (see Sec.~\ref{sec:7.2})\footnote{That's a lot of parameters to optimize, especially if they are separate in every neighborhood and we optimize ALL of them together with the mock cycle. How can one run an efficient hyperparamter search?}. The cheap SVD calculations (one per each large neighborhood) should be done only once per many training iterations. It is particularly inexpensive in the case of Neural Networks, since it should be done there in terms of the {\it input activations}, not in terms of the {\it parameters} $w_i$ (as explained in Sec.~\ref{sec:8.1}).
+
+\section{M3}
+\subsection{5.5 Relaxation Rules}
+\label{sec:relaxation_rules}
+% Top paragraph.
+We continue to generally refer to the fine-level iteration (which in NN is normally GD; but we also explore alternative schemes) as \textbf{relaxation}, borrowing the jargon of multigrid PDE solvers \cite[Sec.~1]{guide}. We will use the term GD for a relaxation scheme that changes one parameter at a time in some proportion to its gradients. 
+
+A first key question is whether it is possible to estimate how effectively GD, or an alternative relaxation scheme, \textbf{narrows the error}, i.e., reduces most of the error to a lower-dimensional space, even before a coarsening is chosen. 
+
+This usually happens if the GD changes are \textbf{local}, i.e. only gradients of the strong neighbors of a parameter are significantly changed by the GD step of that parameter. Since such steps reduce components nearly independently in many local neighborhoods, this indirectly ensures that many error components are reduced and the remaining error is nearly low-dimensional. For instance, discretized PDEs \textbf{pointwise relaxation} \cite[Sec.~1]{guide} is local because of the equations' locality. In contrast, in discretized \textbf{integral equations}, updating a single parameter $w_i$ would introduce changes to the residuals at many $w_j$ far from $w_i$. To make the relaxation in this case still effectively local, so-called \textbf{distributive} relaxation is used instead \cite{lubrecht}; that is, simultaneously updating \textbf{several} neighboring parameters in a particular combination so that the effect on far parameters is negligible. Error narrowing is not equivalent to GER reduction in this case: in fact, integral equations are the inverse of differential equations, with {\it low-}GER components being ``local'' (in the sense that there is no correlation between their values at far points, almost like random errors), while high-GER errors are non-local (smooth). Generally, relaxation should narrow the error to reside in the lower-dimensional subspace of low \textbf{Response to Relaxation (RER)} errors. A simple general sufficient condition is for the relaxation to quickly reduce random components (whether they are high-GER or not).
+
+Generally, if GD is not already local, locality can be achieved via the local neighborhoods and the coarse variables that represent each neighborhood described in Sec.~\ref{sec:neighborhoods}. Based on these neighborhoods, we can replace GD with \textbf{Compatible Gradient Descent (CGD)}: a modified GD scheme that keeps the coarse variables unchanged, and is therefore local. This can simply be done by gradient descent along the {\it lower} SVD directions, i.e. the SVD directions that will not be used as coarse variables. (See Sec.~\ref{sec:5.4} for the way to do it when the neighborhoods are not small enough.)
+
+Similarly in {\it stochastic} optimization, if SGD is not local, it can be replaced by {\it Compatible SGD (CSGD)}, e.g., SGD along the lowest SVD directions. As mentioned above, this localization of relaxation (in as small neighborhoods as allowed by the CR-vs.-REE tradeoff) is important for enabling small $K$ in deterministic cases and small amount of averaging (hence data efficiency) in stochastic cases (see Sec.~\ref{sec:5.6}).
+
+\section{M4--M5}
+\subsection{5.6 Coarse Variables and Relaxation in the Stochastic Case}
+While in the (linear or nonlinear) {\it deterministic} case the calculation of each test function $e^{(k)}$ can be quite involved (App.~\ref{sec:C} is an example), the {\it stochastic} case seems to have the advantage that each sample $m$ can serve as an independent example. But this is an example $g^m$ of the gradient $g$, {\it not} the error $e$, and it is {\it not} an example of the average $\frac{1}{M} \sum_{m=1}^M g^m$, i.e., not an example of the gradient of the true error.
+
+However, correspondingly, in stochastic optimization the issue of relaxation slowness is different than in the deterministic case; it is dominated by the {\it stochastic slowness}, i.e. the long averaging of the gradient $g$ (over many samples $g^m$) needed to assess its true value (see Sec.~\ref{sec:4}). Fortunately, the SVD of a matrix $G^K = (g^{(1)},g^{(2)},\dots,g^{(K)})$ whose columns $g^{(1)}=g^{m_i}$ are gradients of independent samples (instead of $E^K$ above, whose columns $e^{(i)}$ are independent relaxed error vectors) is exactly what we need to treat this stochastic slowness. (And see below how in this framework the ill-posedness slowness is addressed.)
+
+To see this, let's review in detail the role of SVD (either the global SVD or $\text{SVD}_{\text{local}}$ of one aggregation). In the {\it deterministic} case the SVD is
+$$ E^k = V \Sigma U^T\,,\quad V, U \text{ are unitary}\,,\quad \Sigma = \diag\left\{s_1, s_2, \dots, s_n \right\}\,,$$
+where $s_1 \geq s_2 \geq \cdot \geq s_n \geq 0$ are the ``singular values'' of $E^k$. The unitary matrix $V^T$ is used to rotate the set of parameters $w^T$ into a new set $\bar{w}^T = V^T w^T$; hence it rotates any error vector $e^T$ into a new vector $\bar{e}^T = V^T e^T$. So the $K$ error examples $E^K = (e^{(1)},e^{(2)},\dots,e^{(K)}$ are rotated to $\bar{E}^K = V^T E^K = \Sigma U^T$. Hence, since $U$ is unitary,\footnote{1) Missing $K$ superscript on $E_i$ in the equation below? 2) Missing vector norm inside the sum, i.e., $\left\|\bar{e}_i^{(k)}\right\|$?}
+$$ \sum_{k=1}^K \left(\bar{e}_i^{(k)}\right)^2 = \bar{E}_i \bar{E}_i^T = s_i^2\,.$$
+Thus, the $n$ rotated variables $(\bar{w}_1,\bar{w}_2,\dots,\bar{w}_n)$ are arranged in decreasing order of the $L_2$ norms of their errors in their $K$ examples, which is roughly a decreasing order of their convergence slowness in relaxation. So we choose the first $n_{\gamma}$ of them $(\bar{w}_1,\bar{w}_2,\dots,\bar{w}_{n_{\gamma}})$ to serve as our coarse variables.
+
+In the {\it stochastic} case let the SVD be $G^K = V \Sigma U^T$, reusing the same notation Note that in this case, unlike the former, we should use $V$ (not $V^T$!) to rotate the set of parameters: $\bar{w}^T = V w$, because $V^T$ would rotate the corresponding gradient into $\bar{g}^T = V^T g$. Hence, similarly to the above deterministic derivation we get
+$$ \sum_{k=1}^K \left(\bar{g}_i^{(k)}\right)^2 = s_i^2\,,$$
+therefore the variance of $\bar{g}_i$ over the set of examples is
+$$ \var(\bar{g}_i) = \frac{1}{K} \sum_{k=1}^K \left(\bar{g}_i^{(k)}\right)^2 - \left(\frac{1}{K} \sum_{k=1}^K \bar{g}_i^{(k)} \right) \approx s_i^2\,,$$
+since the average of $\bar{g}_i$ should tend to $0$. Thus the rotated variables $(\bar{w}_1,\bar{w}_2,\dots,\bar{w}_n)$ are arranged in decreasing order of their variance, or {\it noise}. So the $n_{\gamma}$ leading variables $(\bar{w}_1,\bar{w}_2,\dots,\bar{w}_{n_{\gamma}})$ chosen for the coarse level are the higher-variance combinations, slower to converge in relaxation due to their higher noise. As explained in Sec.~\ref{sec:5.5}, the rest of the combinations $(\bar{w}_{n_{\gamma}+1},\bar{w}_{n_{\gamma}+2},\dots,\bar{w}_n)$ are those that should be used in the CSGD relaxation, to reduce its noise as much as possible.\footnote{But part of this logic does not make sense to me: the stochastic case should be an {\it extension} of the deterministic case, when the noise level is non-zero. So how come the algorithm for the stochastic case does not generalize the algorithm for the deterministic case? For instance, if we imagine that the batch size is gradually increased to infinity so we calculate the gradient more and more deterministically, what would happen in the algorithm? Or, is the stochastic case description referring to a different part of the overall algorithm that the local SVD is used for -- CSGD vs. coarsening, in which case the question is how do we coarsen in the stochastic case, not just how do we relax?}
+
+This CSGD relaxation, even though restricted to low-noise combinations, may itself run into some slowness, since there may still be different RER sizes among the low-noise combinations (generalizing GER, see Sec.~\ref{sec:5.5}). The maximal RER ratio\footnote{It's unclear if the RER is already a ratio or what ratio is being referred to here.} among the low-noise combinations should be much smaller than the maximal ratio among the bare gradients, so CSGD slowness may still be mild and tolerable. {\it If not}, instead of applying relaxation to the low-noise combinations, one should apply to them multi-level cycles similar to the cycles applied in the deterministic case (as in App.~\ref{sec:C}). Indeed, relatively short minibatch averaging of the low-noise gradients should already yield a good approximation to their true gradients, thus making them amenable to the deterministic treatment.
+
+\section{N}
+For a given desired coarsening ratio CR the relative energy error of the local SVD, called $REE_{\text{local}}$, is usually much larger than the global REE with the same CR, mainly because the interpolation stencil is restricted to the local neighborhood (whose size we want to minimize, as explained above). This problem can be mitigated: while keeping the coarse variables defined by $SVD_{\text{local}}$, the
+
+\section{N1}
+Again, in the NN case, much simplification and efficiency can be gained by defining $P_{\text{HA}}$ in terms of activation statistics, then applying it to the parameters (see Sec.~\ref{sec:8}).
+
+\section{O1}
+$P_{\text{HA}}$, we still need to describe how the coarse-level solution is actually obtained. Usually we design the coarse level to be of the same kind and structure as the fine level, so its solution is recursively obtained in the same way (and the same code), i.e., by relaxation combined with corrections from a still coarser level. The coarsest level has few parameters and can usually be solved very efficiently just by relaxation.
+
+\section{O2}
+Assuming the fine-level equations are linear (perhaps linearized equations around the current fine-level approximate solution $w_0^f$) they can be written as
+$$A^f w^f = b^f\,,$$
+where $A^f$ is a sparse matrix. Writing $w^f = w_0^f + e^f$, the error $e^f$ satisfies the equation
+$$A^f e^f = b^f - A^f w_0^f := r^f\,,$$
+where $r^f = -g(e^f)$ is called the {\it residual} vector. With the coarse-to-fine interpolation $e^f = P_{\text{HA}} w^c$, the coarse-level equations are chosen to be
+$$A^c w^c = b^c\,,\text{where } A^c := P_{\text{HA}}^T A P_{\text{HA}}\,, b^c := P_{\text{HA}}^T r^f\,.$$
+The interpolation $P_{\text{HA}}$ in such
+
+\section{O3}
+SA uses one coarse variable $e_j^c$ per neighborhood; usually $e_j^c$ is the value of $e^f$ at a single variable of the neighborhood.
+
+\section{O4}
+Sec.~\ref{sec:5} of the present article introduces new features to BAMG that have not appeared before. Most important is the {\it local SVD} procedure, which is a general way to define the coarse-level variables. It allows defining more than one coarse variable per neighborhood, as indeed necessary in many applications. So this opens up many new problems to multilevel solvers, including highly indefinite discretized PDEs (e.g., wave equations), systems of macromolecular dynamics and NN optimization.
+
+\section{Q-1}
+\subsection{13. Increased Convolutional Kernel Width}
+In convolutional layers, the input kernel (for 2D inputs) has dimension $N_c \times k \times k$ (see Sec.~\ref{sec:8}). Most often the smallest reasonable width $k = 3$ is used. Wider (larger-$k$) kernels, when optimized, should always give better results (sine a narrow kernel is a special case of a wider one), but they are much more expensive to both train and use. In addition  to increased complexity due to the $O(k^2)$ number of parameters, training with larger $k$ also suffers from more severe slowness due to the larger-scale motions that need to be performed.
+
+In contrast, with a multilevel optimizer the use of a larger $k$ seems more attractive, for the following reasons.
+
+First, the slowness due to required larger-scale motions is eliminated by performing them at coarser levels.
+
+\section{Q-2}
+Secondly, it is exactly those larger-scale motions that make for higher accuracy. To obtain the same accuracy with a narrower kernel, many more layers need to be employed to account for the larger scale corrections, which introduces many more parameters as well as inter-level slowness (see Sec.~\ref{sec:12}).
+
+A wider kernel would allow taking sooner into account wider and/or more remote correlations. It
+
+\section{Q-3}
+The wider/remote correlations can be detected as soon as they occur by applying an efficient multi-level mini-clustering (like RMC, App.~\ref{sec:x1} to the entire input of a wide kernel.
+
+The coarsening with a wider kernel should yield much better coarsening ratios\footnote{Why?}. This, together with running most of the training at coarse levels, and using corresponding upscaling (see Sec.~\ref{sec:upscaling}) at inference time, may compensate for the increased number of parameters in a wider kernel network.
+
+\section{R}
+In fact, one or more levels of upscaling can often naturally occur as part of coarsening. That should happen when the optimization problem is overparameterized. In such cases, by performing the CGD relaxation (see Sec.~\ref{sec:7.1}) or the low-noise relaxation (see Sec.~\ref{sec:8.3}) one would find that the relaxed combinations are already converged (so the relaxation has negligible effect), so one can switch to the next coarser level and never return to the current fine level.
+
+Another case should happen upon fine-tuning for a downstream task, which should normally depend on much fewer degrees of freedom (compared to the huge number of pretrained parameters). One should then only update some coarse levels at each layer. Using FAS, the fine level should then only be visited infrequently, to update the fine-to-coarse defect correction. Using upscaling (i.e., learning th edefect correction's dependence on the coarse variables) one may avoid further fine-level visits altogether.
+
+\section{S1}
+\subsection{8.1 Coarsening}
+\section{sec:coarsening}
+Following Sec.~\ref{sec:relaxation_rules}, a coarse variable for the sheaf $\tilde{S}_j$ is a linear combination $W_{\alpha j} = \sum_i \alpha_i w_{ij}$ of its variables, whose gradient at sample $m$ is
+$$ G^m_{\alpha j} = \sum_i \alpha_i g^m_{ij}\,, \\quad \sum_i \alpha_i^2 = 1 $$
+and whose average size
+\begin{equation}
+    \frac{1}{M} \sum_m \left(G^m_{\alpha j} \right)^2 \text{ is large }
+    \label{parameter_large_avg_size}
+\end{equation}
+compared to other normalized combinations in the same neighborhood. (The neighborhoods will be discussed below.) By conclusion I in App.~\ref{sec:x}, this generally implies that the corresponding linear combination of input activations
+$$A^m_{\alpha} = \sum_i \alpha_i a^m_i$$
+has a larger average size, i.e.,
+\begin{equation}
+    \frac{1}{M} \sum_m \left(A^m_{\alpha} \right)^2 \text{ is large }
+    \label{activation_large_avg_size}
+\end{equation}
+compared to other normalized combinations (in the corresponding neighborhood of input activations).
+
+\section{S4}
+to produce sparse $Q$, and then employ SVD to calculate $Q$ in each neighborhood. In these calculations each input activation $a_i$ is represented by the vector $\left\{ a^m_i \right\}_{m \in B}$. The batch $B$ need not be very large, because all we need at this point is to capture the strongest correlations. (But see Sec.~\ref{sec:5.4}) for the case that the neighborhoods cannot be sufficiently small, hence $B$ cannot be smaller either).
+
+\section{S3}
+Note that App.~\ref{sec:x} shows that (\ref{parameter_large_avg_size}) implies (\ref{activation_large_avg_size}), but not that (\ref{activation_large_avg_size}) implies (\ref{parameter_large_avg_size}) for every $j$. This means that some parameter combinations may be added to the coarse level that do not {\it have to} be there. This should cause no problem.
+
+\section{S2}
+The coarse level will have the same general layer structure as the fine level, so solving its equations can be done with the same procedures (relaxation and further coarsening).
+
+\section{S5--S6}
+\subsection{8.2 Multilevel Cycle}
+\label{sec:multilevel_cycle}
+{\bf a multilevel cycle} for approximately solving the NN stochastic optimization is composed of the following four steps.
+\begin{enumerate}
+    \item Several {\it relaxation} iterations (see Sec.~\ref{sec:8.3} below).
+    \item {\it Coarsening:} calculating the fine-to-coarse projection $Q$ as described above. (The same $Q$ can actually be reused by several successive cycles, so this calculation is done only one per several cycles). This, together with (\ref{8.5}) defines {\it the coarse level network} (depicted in Fig.~\ref{fig:fig2}). Note that the input activation to the coarse layer is the entire intermediate vector $a^c$, {\it not} divided into subsets according to the fine-level neighborhood used to create $a^c$; the coarse level will create its own neighborhoods.
+    \item {\it Recursion:} executing one or more multilevel cycles for approximately optimizing the coarse network; except that the {\it coarsest} level, employ relaxation only. Note that for more than two elvels the recursion should use FAS (see Sec.~\ref{sec:fas}).
+    \item {\it Interpolation:} as in the case of the fine-to-coarse projection $Q$, a great simplification and efficiency (supported by Conclusion II in App.~\ref{sec:x}) can be gained by choosing the coarse-to-fine interpolation ($P^*$ in (\ref{8.6})) to be the same at all output sheaves, determined by a corresponding interpolation derived for the corresponding input activations; namely,
+    \begin{equation}
+        P^* = \argmin \sum_p \sum_{m \in B} \left\{ a^m_i(p) - \sum_{k \in Z_i} P^*_{ik} a^{cm}_k(p)e\right\}^2\,.
+        \label{pstar_fit}
+    \end{equation}
+    As explained in Sec.~\ref{sec:5.3}, the stencil $Z_i$ could generally include activations not just from the neighborhood of $a_i$, but also from neighboring neighborhoods.
+\end{enumerate}
+
+\section{S7}
+\subsection{Relaxation: SGD for Low-Noise Combinations}
+\label{sec:sgd_relaxation}
+As explained in Sec.~\ref{sec:5.6} relaxation should be designed separately in each neighborhood, and should consist of SGD in terms of the low-noise normalized combinations of parameters belonging to the neighborhood. It is important that the relaxed combinations (nearly) span the space orthogonal to the high-noise combinations used for in coarsening described above (Sec.~\ref{sec:8.1}). For this purpose, the same SVD of each input-activation neighborhood is used for designing both coarsening and relaxation, the higher combinations (the high-noise ones, i.e. those corresponding to large SVD singular values) defined $Q$ and the rest -- the lower combinations, are used in relaxation; thus the same relaxation is used in all output sheaves. In the case of larger neighborhoods, economical approximate SVD should be used, as in Sec.~\ref{sec:5.4} So, the picture of relaxation is the same as Fig.~\ref{fig:2}, except that $a^c$, the vector of low-noise combinations, denoted $a^f$, and the steps of calculating the relaxation is as discussed for (\ref{8.5}), with $f$ replacing $c$,
+
+\section{S8}
+yielding the relaxation correction $\delta w^f$. This correction is added to the current weights $W$ using (\ref{8.6}) with $\delta w^f$ instead of $\delta w^c$, and (\ref{8.7}) with $a^{fm}_k$ replacing $a^{cm}_k$.
+
+Since all the combinations participating in the relaxation have uniformly-bounded low noise, a uniform averaging length can be used which yields a sufficiently good approximation to all their gradients (see App.~\ref{sec:B}). Then this low-noise relaxation becomes similar to relaxing a deterministic system. So (as generally described in Sec.~\ref{sec:5.5}), in case relaxation slows down before reaching small gradients for all the relaxed combinations (small compared with the current high-noise gradients), the low-noise processing can e,ploy multilevel acceleration similar to a deterministic acceleration.
+
+\section{T1}
+Bottom-up agglomerative algorithms (see \cite{17} for a comprehensive study) can be used when $n$ is not too large, but for large $n$ their quadratic $O(n^2)$ complexity makes them inefficient. Moreover, bottom-up approaches build on strong {\it binary} correlations, but in may cases no such correlations exist while there still exist larger mini-clusters that can be coarsened (having small CR for small REE). A top-down algorithm, such as RMC described below, should then be used to construct suitable miniclusters. With its nearly linear complexity it can in particular be used to {\it find} the strong binary correlations (in the case that they exist by not apriori known), if needed.
+
+\section{T2}
+\subsection{G.1 Recursive Mini Clustering: $S^1 = \text{RMC}(S^0)$}
+Given a set $S^0$ of vectors in $\Real^m$, our aim is to construct a set $S^1$ of many disjoint miniclusters whose union is $S^0$. By ``minicluster`` we mean a small subset of highly correlated vectors.
+
+RMC first divides $S^0$ into $k$ (a small number) subsets $(S^0_1,S^0_2,\dots,S^0_k)$ using a standard k-means algorithm \cite{kmeans}, and defines the first approximation to $S^1$ as the union of miniclusters of all subsets. \footnote{Unclear. Miniclusters of $S^0_i$ have not yet been defined here.} This $S^1$ may not be good enough because the k-means division may have placed many close neighbors (highly correlated vectors) in different subsets. An improvement to $S^1$ is obtained by redefining the miniclusters using k-means within each super-minicluster, where the super-miniclusters are obtained by applying RMC to the set $S^1$. (Each member of $S^1$ is not a vector but a mini cluster of vectors, so for RMC it is represented by its center, i.e., the average of its vectors). Indeed, additional improvement steps of this type can be further applied.
+
+{\bf Notation.}
+\begin{itemize}
+    \item $S^0 = \left\{x_i\right\}_i$: the given set of vectors, $x_i \in \Real^m$.
+    \item $S^1 = \left\{x_i^1\right\}_i$: set of miniclusters.
+    \item $S^2 = \left\{x_i^2\right\}_i$: set of miniclusters of miniclusters. \footnote{Also denoted super-miniclusters above, which is confusing to a reader.}
+    \item $(S^0_1,S^0_2,\dots,S^0_k)$ : subsets of $S^0$.
+\end{itemize}
+
+% TODO: replace by algorithmic environment.
+{\bf Function $S^1 = \text{RMC}(S^0)$.}
+\begin{enumerate}
+    \item If $|S^0| < k_1$ or $\text{radius}(S^0) < R_1$, then assign $S^0$ as  a mini-cluster. Otherwise:
+    \item $k = \min\left\{k_2, \ceil*{\frac{|S^0|}{k_1}} \right\}\,.$
+    \item $\left\{S^0_1,S^0_2,\dots,S^0_k\right\} \longleftarrow \text{k-means}\left(S^0\right)\,.$\footnote{The k-means algorithm here is missing some descriptive details. What is the initial guess for] the centers? How many iterations do we perform?}
+    \item $S^1 \longleftarrow \bigcup_{i=1}^k \text{RMC}\left(S^0_i\right)\,.$
+    \item $S^2 \longleftarrow \text{RMC}\left(\text{centers}\left(S^1\right)\right)\,.$
+    \item $S^1 \longleftarrow \bigcup_{x_j^2 \in S^2} \text{k-means}\left(\bigcup_{x_i^1) \in x^2_j} \text{center}x_i^1 \right)\,.$
+    \item Possibly repeat steps 5--6 several times.
+    \item Return $S^1$\,.
+\end{enumerate}
+
+\section{T5}
+\subsection{G.2 Operation Count}
+Let $\mu$ be the number of $S^1$ improvement iterations (steps 5--6) applied. Assume for simplicity that $k_1 = k_2 = k$, and that $k$ and $\mu$ are constant at all RMC levels. Let $a k n$ and $b k n$ be the number of operations in the k-means of Steps 3 and 6, respectively. Let $f(n)$ be the operation count of $\text{RMC}(S^0)$. The RMC recursion implies
+$$ f(n) = k f\left \frac{n}{k} \right) + a k n + \mu \left(f\left( \frac{n}{k} \right) + b k n\right)\,, \quad f(k^2) = b k ^3\,. $$
+Defining $g(n) = f(n)/n$, one gets
+\begin{equation}
+    g(n) = \left(1 + \frac{\mu}{k}\right) g\left( \frac{n}{k} \right) + (a + \mu b) k\,,
+    \quad g(k^2) = b k\,.
+    \label{eqn:G.1}
+\end{equation}
+Assuming $n = k^{\nu}$ and denoting $h_{\nu} = g(n) = g(k^{\nu})$, $r = 1 + \mu/k$ and $A = (a + \mu b)k$, we get
+\begin{equation}
+    h_{\nu} = r h_{\nu-1} + A\,,\quad h_2 = b k\,,
+    \quad g(k^2) = b k\,,
+    \label{eqn:G.2}
+\end{equation}
+which for $\mu > 0$ implies
+\begin{equation}
+    h_{\nu} = r^{\nu-2} \left( b k + \frac{A}{r-1} \right) - \frac{A}{r-1}\,, \quad \nu \ geq 2.
+    \quad g(k^2) = b k\,,
+    \label{eqn:G.3}
+\end{equation}
+Since $\nu = \log n / \log k$, choosing $k$ such that
+\begin{equation}
+    k \log k \geq \mu \left( \log n - 2 \log k\right),,
+    \label{eqn:G.4}
+\end{equation}
+it follows that $r \leq 1 + \frac{1}{\nu-2}$ and hence $r^{nu-2} \leq e$. Then
+\begin{equation}
+    g(n) = h_{\nu} \leq e b k + \left( \frac{a}{\mu} + b \right) (e-1) k^2\,.
+    \label{eqn:G.5}
+\end{equation}
+For example, for $\mu = 1$ and $n = 10^3, 10^6, 10^9$ and $10^{12}$, (\ref{G.4}) is satisfied by $k = 4,6,8$ and $10$, respectively. So (\ref{G.5}) yields for $\mu = 1$
+\begin{align}
+    g(10^3) &\leq& 27.5 a + 38.4 b \\
+    g(10^6) &\leq& 62 a + 79 b \\
+    g(10^9) &\leq& 110 a + 132 b \\
+    g(10^12) &\leq& 172 a + 205 b\,.
+    \label{eqn:G.6}
+\end{align}
+For $\mu = 0$, if we choose $k = 10$, (\ref{G.2}) entails
+\begin{equation}
+    g(10^{\nu}) \leq 10 (\nu - 2) a + 10 (\nu - 1) b\,.
+    \label{eqn:G.7}
+\end{equation}
+To emphasize the smallness of $a$ and $b$, note that there is no need to fully converge each of the k-means calculations. We are only interested in the smallness of the clusters' average radius, which does not significantly change after just few k-means iterations.
+
+\subsection{G.3 Further Efficiency Notes}
+In many (perhaps inmost practical) problems, although the overall dimension $m$ may be high, at each scale of the problem the data is {\it locally low dimensional}. For such problems, even though the local low dimensional space may not explicitly be given, the RMC algorithm should work well even with $\mu = 1$. This is because at low dimension the k-means clusters would have many more points in their interior than close to their boundary, so only few close neighbors will end up belonging to different k-means clusters.
+
+Note that to be successful, the algorithm need not mini-cluster together all pairs of strongly coupled vectors. {\it Particularly} strongly coupled pairs will be miniclustered together with high probability, but many other strongly coupled vectors may not be miniclustered together; they will however belong to strongly coupled miniclusters that will subsequently be clustered together at a higher coarsening level.
+
+In RMC applications that aim at larger miniclusters (more than just a couple of vectors per minicluster) the correction (steps 5--6 of the algorithm) is not likely to significantly change the average cluster radius, so $\mu=0$ can safely be used.
+
+Also, each k-means procedure, especially when larger clusters are sought, can be much accelerated by a {\bf multilevel} approach which first finds cluster centers using only a small random subset instead of the full set of vectors, then improve the center positions using a larger random subset, etc. Only one iteration needs to be performed with the full set of vectors, so the overall work need not be larger than the work of two full k-means iterations.\footnote{Provided that the random subset is doubled at each level of this multilevel procedure.}
+
+Finally, much further acceleration can be gained by {\bf random-projection hashing and quantizations.} Indeed, at the first RMC level, where k-means subdivides the entire set of vectors into few large subsets, low accuracy is sufficient in measuring distances. One can then use a random projection that represents each vector by a much shorter vector, and that short vector can be quantized to a much lower precision. As one proceeds to progressively finer clusters higher accuracy is required, but each vector can then be represented by its difference from the parent-cluster center. Relative to that difference, low accuracy is again sufficient, again allowing representation by shorter and quantized vectors.
+
+Importantly, note that this approach can also yield a {\bf very compact storage}, enabling fitting very long inputs into memory. Each vector is represented by its hashed-and-quantized distance from its minicluster center; tje centers are similarly represented by their hashed-and-quantized differences from the center of the parent cluster; etc.
+
+Note that the RMC algorithm is {\bf highly parallelizable}.
+
+\subsection{G.4 Hidden Miniclusters}
+Let again $S^0 = \left\{x_i\right\}_i$ be the set of input activations, $x_i \in \Real^m$. We search for an {\it ``association matrix''} $T \in \Real^{\bar{m} \times m}$ such that the set $\left\{T x_i\right\}_i$ has as good as possible aggregates (miniclusters), by which we mean as small as possible Lagrangian $L_a = E + \lambda n$, where $E$ is a chosen error metric, $n$ is the number of miniclusters, and $\lambda$ is a chosen Lagrange multiplier.
+
+$E$ and $\lambda$ depend on the use case Denoting $u_i = T x_i$, a typical example of $E$ is the ratio
+\begin{equation}
+    E = \sum_i \left\| u_i - C_{I(i)} \right\| / \sum_i \left\| u_i \right\|
+    \label{clustering_error_metric}
+\end{equation}
+with some chosen norms, where $C_{I(i)}$ is the center of the $I${\it th} minicluster to which $u_i$ belongs. (In calculating derivatives of $E$ one can consider the denominator of (\ref{clustering_error_metric}) and the center $C_I$ to be frozen.) \footnote{Wouldn't it make sense then, in order to define a consistent optimization problem, to define $E$ with a frozen denominator and centers, not just the derivatives of $E$?} The Lagrange multiplier $\lambda$ can be used as a control hyperparameter: choosing lower $\lambda$ would yield smaller \footnote{For smaller $E$, or for the same value of $E$, do we obtain a larger $n$?} $E$ for larger $n$.
+
+Another hyperparameter that depends on the use case is $\bar{m}$, the dimension of the vectors $u_i$. Smaller $\bar{m}$ is desired for compute, storage and data efficiencies, but too small $\bar{m}$ may not give coarsenable aggregates (i.e., small $\text{CR}_{\text{local}}$ for small $\text{REE}_{\text{local}}$; see Sec.~\ref{sec:5.2}).
+
+We this get a combination of two minimization problems, each having its own parameters: minimizing the overall loss functional $L(w)$ and minimizing the Lagrangian $L_a(T)$. We can iteratively solve both of them using the same forward feeding of samples, but with separate backprojections of gradients. We expect $T$ to converge faster and be better initialized by continuation (see App.~\ref{sec:continuation}), since it is less dependent on the specific task, and its backpropagation is only within one layer. Then, as soon as $T$ starts to converge, the revealed hidden aggregates with start helping to produce the right coarse variables for accelerating the convergence of $W$.
+
+\subsection{G.5 Multiple Associations}
+Different initializations may yield different association matrices. One should accept all those that yield low values of $L_a$. Each of them would contribute to accelerating the minimization of the loss $L$. Each of them may also lead upon upscaling to the emergence of different high-level concepts. They may be trained and applied simultaneously, in parallel to each other.
+
+A relatively fast multilevel hunt for multiple good (having small $L_a$) association matrices can proceed as follows. Begin by producing many association matrices with small width $\bar{m}$, each starting from a random $T$ followed by relaxation (possibly multilevel-accelerated) with relatively large $\lambda$ (producing partitions into few large miniclusters). Throw out all cases except those that have ended up with a small $L_a$.
+
+For the next level, {\it double} the matrix width $\bar{m}$. Instead of starting from random, each $T$ calculation will start by concatenating the rows of a random pair of association matrices of the previous level. Relax (possibly with multilevel acceleration) now with a reduced value of $\lambda$ (creating finer miniclustering). Throwing out again all the matrices that do not converge to a clustering with small $L_a$, proceed to the next level, again doubling the width $\bar{m}$; and so on. Stop at the first level that yields good coarsenable aggregates (small CR for small REE).
+
+(This is just a preliminary outline of multiple association algorithms. Furthermore, an empirical study is required.)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Bibliography.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \bibliography{msgd}
 \end{document}
+
+
+
+
+
+
 
 
 
