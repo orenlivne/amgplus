@@ -58,55 +58,6 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \newpage
-\section{U}
-instead of coarsening and interpolation being inexpensively performed at the activation yard\footnote{grid?}. But at this stage of coarsening it may be OK, since we may assume that the number of parameters is much smaller than their number at previous coarsening stages.
-
-\section{V1}
-\subsection{10.3 The Hebbian Neuroscience Rule}
-Suppose two input activations $a_1$ and $a_2$ are highly correlated. According to the coarsening algorithm in Sec.~\ref{coarsening:8} they will form a two-activation neighborhood at the coarse level ($a^c = Q a$; see Fig.~{2}) will include a linear combination of them $a^c_k = q_1 a_1 + q_2 a_2$. This is exactly the well-known {\it Hebbian rule} in neuroscience: ``cells that fire together wire together``.
-
-``Highly correlated $a_1$ and $a_2$`` means that there exists a normalized linear combination
-$$ r_1 a^m_1 + r_2 a^m_2\,, \quad r_1^2 + r_2^2 = 1 $$
-that is small for all samples $m$\footnote{The superscript $c$ for coarse-level quantity collides with the superscript $m$ for sample. Clarify notation.} The multi-level algorithm extends this rule to larger activation sets (termed ``neighborhoods``), each containing one or multiple\footnote{Rephrased this sentence a little since it was unclear. Please check.} normalized linear combinations that are small (compared with other normalized combinations in the same neighborhood).
-
-Further interesting analogies should be investigated between the multilevel algorithms and system neuroscience. For example, the search for hidden mini-clusters (see Apps.~\ref{G.4, G.5}) is akin to ``recent technological advances that enable large-scale recording of neural activity, [enabling] the discovery of new behavioral variables hidden within neural codes, and even allows using one animal's data to decode another animal's behavior`` \cite{18}. This finding may indicate that the association matrices $T$ can be initialized by knowledge transfers within a continuation process (see App.~\ref{H}).
-
-\section{V2}
-\subsection{10.4 Low Rank Adaptation (LoRA)}
-There is an obvious similarity between a two-level coarsening scheme and a recent technique called Low Rank Adaptation (LoRA) \cite{lora}.
-
-Generally, as discussed in Sec.~\ref{3}, following a proper relaxation (e.g., SGD), the main remaining error (hence the needed correction) resides in a much lower dimensional space. The LoRA approach (without recognizing the real reason for the low dimension) is to {\it learn} the projection of the correction to lower dimension (our $Q$ operator) as part of learning the optimal adaptation of a pre-trained network to any downstream task. A great advantage of this approach compared to our multi-level coarsening method is that it is simpler to understand and implement. On the other hand, the system has the following potential advantages:
-
-\begin{enumerate}
-    \item Our coarsening operator $Q$ is potentially much sparser than LoRA's projection operator $A$, since it coarsens one local neighborhood at a time, while $A$ is a full matrix.\footnote{However, critics will say that modern GPUs are optimized to perform matrix-vector multiplications a lot more efficiently than a sparse matrix multiplication. One might argue that that means we should change GPU architectures, but this might take time. How can we efficiently implement the multilevel algorithm so it gains not just in FLOPs but also in runtime?}
-    \item The locality also implies that $Q$ can be derived based on a much smaller number of examples.
-    \item Our coarse level correction is designed to accelerate the pre-training too, not just the fine tuning.
-    \item Equiped with FAS, our coarse level can itself be corrected by a still coarser level (a correction of still-lower dimension).
-    \item The FAS coarsening may lead to upscaling (see Sec.~\ref{14}), whereupon the heavy pretrained network is discarded, leaving only the much lighter coarse levels, both for post-training and for inference.
-\end{enumerate}
-
-An interesting hybrid possibility is to start with the local-SVD-based $Q$, then improve it as part of the overall optimization by backprojection. This should yield faster learning than starting from a random $Q$.
-
-\section{V4}
-\subsection{10.5 Transformer}
-There are fundamental similarities between the transformer algorithm \cite{transformer} and the multilevel solver.
-
-The multilevel solver's alternation between relaxation (fine-level processing) and coarse-level iterations is similar to the transformer's alternation between attention layers and simple feed-forward networks. An attention layer is similar to a coarse-level correction since it learns and performs {\it collective} changes of correlated activations. The key and query attention matrices are analogous to the transformation $T$ that brings out hidden neighborhoods (see App.~\ref{G4}).
-
-These similarities may actually suggest some useful improvements. The mini-clustering production of neighborhoods (see App.~\ref{G1}) hints to a fast way of summarizing attention over very long context windows. The multi-level construction of the matrix $T$ (see App.~\ref{G5}) suggests faster ways to {\it train} the attention matrices.
-
-\subsection{W}
-$\gamma^m_j(p) = \partial L/\partial \tilde{a}_j(p)$, i.e. correlations between vectors
-$$
-\gamma_j = \left\{ \gamma^m_j(p) \right\}_{m \in \text{batch}, p \in \text{output grid}}\,.
-$$
-Briefly: using mini-clustering (see App.~\ref{sec:miniclustering}) we subdivide the space of vectors $\gamma_j$ into strongly correlated neighborhoods, then using SVD (or economical SVD for large neighborhoods, see Sec.~\ref{?}) we divide each neighborhood into two complementary subspaces: a space of low-noise combinations and one of higher-noise. The low-noise combinations are used for low-noise relaxation, while the higher-noise ones define the coarsening operator $\tilde{Q}$. The coarse level of the layer then read as
-\begin{equation}
-    \tilde{a}^c = W^c a\,,\quad \tilde{a} = \tilde{Q}^T \tilde{a}^c\,.
-    \label{11.1}
-\end{equation}
-The coarse-level processing optimizes $W^c$ by backpropagation, starting with $W^c = 0$ (or with $\hat{W}^c$ approximating $W$ when using FAS). $W^c$ (or $\delta W^c = W^c - \hat{W}^c$ when using FAS) is then interpolated and added to $W$, where the interpolation $\tilde{P}^*$ is defined as corresponding to interpolation designed in the space of vectors $\gamma_j$.
-
 \section{Appendix X: Dependence of Gradient Combination Statistics on Input Activation Statistics}
 \label{sec:x}
 
@@ -183,21 +134,12 @@ For a {\it deterministic} {\it linear} system of equations, $Ax = b$, producing 
 
 For the deterministic {\it nonlinear} system $A(x) = b$ one can apply the same procedure to the system $A(y) = A(x_0)$, where $x_0$ is the current approximate solution and $y = x_0 + e$, $e$ being initially a random perturbation. The initial as well as all subsequent-iteration residuals $A(x_0) - A(y)$  throughout this procedure should be large compared with $b - A(x_0)$, the current residual, for the procedure to produce a good example of a relaxed error. Also, the iterations should converge $y$ to $x_0$, which is not always guaranteed in nonlinear systems. So the procedure is quite limited in producing high-accuracy examples of relaxed errors. Still, it should be adequate for producing reasonable first approximations to $P$ and $Q$ \footnote{Why?}. And in the stochastic case, good initial coarsening is provided by the sequence of samples described in Sec.~\ref{sec:5.5}. Then, to get more or higher-accuracy examples, one can generally use the following steps.
 
-\section{E}
-We show below that some popular training acceleration techniques can be interpreted as vastly simplified special cases of collective-motion coarsening steps. They attest to the fact that even a very partial coarsening can significantly improve performance. We also point out that at least some simple coarsening steps are known to occur biologically.
-
 \section{E1}
 (Generally,correlations between variables (or between gradients) converge much sooner than the variables (or gradients) themselves.)
 
 \section{E2}
 Similarly, the fine-tuning of a pre-trained model to a new task may be mostly confined to the coarse levels of the pre-trained model.
 
-\section{E3}
-\begin{itemize}
-    \item By systematically separating in each level at each layer the higher-noise from the low-noise and the lower-RER from the high-RER components, the multilevel cycles can eliminate the main resources of slowness inherent in current SVD optimizers. The cycles are highly parallelizable. Even though the gain in wall clock speed may be partly offset due to hardware considerations, the energy savings are likely to still fully reflect the bug reduction in operation count.
-\end{itemize}
-
-\section{E4}
 \subsection{15.6 Memory Efficiency}
 The organization of input activations and weights in mini-clusters allow storing only their differences from cluster centers, which can be done in a relatively lower accuracy, resulting in large store savings via quantization and low-dimensional projections (see App.~\ref{G.3}).
 
@@ -208,82 +150,7 @@ In the case that the sampling noise is nearly uniform (i.e., the variance $\sigm
 \section{F2}
 Often, however, the real problem is the non-uniformity of the noise, where some high-$\lambda$ components may be very noisy (having much larger $\sigma^2$ than others), forcing small $\varepsilon$ in (\ref{eqn:A.7)}. Therefore, the stochastic multilevel algorithm starts with separating low noise from higher noise (see Sec.~\ref{sec:5.6}).
 
-\section{Q-1}
-\subsection{13. Increased Convolutional Kernel Width}
-In convolutional layers, the input kernel (for 2D inputs) has dimension $N_c \times k \times k$ (see Sec.~\ref{sec:8}). Most often the smallest reasonable width $k = 3$ is used. Wider (larger-$k$) kernels, when optimized, should always give better results (sine a narrow kernel is a special case of a wider one), but they are much more expensive to both train and use. In addition  to increased complexity due to the $O(k^2)$ number of parameters, training with larger $k$ also suffers from more severe slowness due to the larger-scale motions that need to be performed.
-
-In contrast, with a multilevel optimizer the use of a larger $k$ seems more attractive, for the following reasons.
-
-First, the slowness due to required larger-scale motions is eliminated by performing them at coarser levels.
-
-\section{Q-2}
-Secondly, it is exactly those larger-scale motions that make for higher accuracy. To obtain the same accuracy with a narrower kernel, many more layers need to be employed to account for the larger scale corrections, which introduces many more parameters as well as inter-level slowness (see Sec.~\ref{sec:12}).
-
-A wider kernel would allow taking sooner into account wider and/or more remote correlations. It
-
-\section{Q-3}
-The wider/remote correlations can be detected as soon as they occur by applying an efficient multi-level mini-clustering (like RMC, App.~\ref{sec:x1} to the entire input of a wide kernel.
-
 The coarsening with a wider kernel should yield much better coarsening ratios\footnote{Why?}. This, together with running most of the training at coarse levels, and using corresponding upscaling (see Sec.~\ref{sec:upscaling}) at inference time, may compensate for the increased number of parameters in a wider kernel network.
-
-\section{R}
-In fact, one or more levels of upscaling can often naturally occur as part of coarsening. That should happen when the optimization problem is overparameterized. In such cases, by performing the CGD relaxation (see Sec.~\ref{sec:7.1}) or the low-noise relaxation (see Sec.~\ref{sec:8.3}) one would find that the relaxed combinations are already converged (so the relaxation has negligible effect), so one can switch to the next coarser level and never return to the current fine level.
-
-Another case should happen upon fine-tuning for a downstream task, which should normally depend on much fewer degrees of freedom (compared to the huge number of pretrained parameters). One should then only update some coarse levels at each layer. Using FAS, the fine level should then only be visited infrequently, to update the fine-to-coarse defect correction. Using upscaling (i.e., learning th edefect correction's dependence on the coarse variables) one may avoid further fine-level visits altogether.
-
-\section{S1}
-\subsection{8.1 Coarsening}
-\section{sec:coarsening}
-Following Sec.~\ref{sec:relaxation_rules}, a coarse variable for the sheaf $\tilde{S}_j$ is a linear combination $W_{\alpha j} = \sum_i \alpha_i w_{ij}$ of its variables, whose gradient at sample $m$ is
-$$ G^m_{\alpha j} = \sum_i \alpha_i g^m_{ij}\,, \\quad \sum_i \alpha_i^2 = 1 $$
-and whose average size
-\begin{equation}
-    \frac{1}{M} \sum_m \left(G^m_{\alpha j} \right)^2 \text{ is large }
-    \label{parameter_large_avg_size}
-\end{equation}
-compared to other normalized combinations in the same neighborhood. (The neighborhoods will be discussed below.) By conclusion I in App.~\ref{sec:x}, this generally implies that the corresponding linear combination of input activations
-$$A^m_{\alpha} = \sum_i \alpha_i a^m_i$$
-has a larger average size, i.e.,
-\begin{equation}
-    \frac{1}{M} \sum_m \left(A^m_{\alpha} \right)^2 \text{ is large }
-    \label{activation_large_avg_size}
-\end{equation}
-compared to other normalized combinations (in the corresponding neighborhood of input activations).
-
-\section{S4}
-to produce sparse $Q$, and then employ SVD to calculate $Q$ in each neighborhood. In these calculations each input activation $a_i$ is represented by the vector $\left\{ a^m_i \right\}_{m \in B}$. The batch $B$ need not be very large, because all we need at this point is to capture the strongest correlations. (But see Sec.~\ref{sec:5.4}) for the case that the neighborhoods cannot be sufficiently small, hence $B$ cannot be smaller either).
-
-\section{S3}
-Note that App.~\ref{sec:x} shows that (\ref{parameter_large_avg_size}) implies (\ref{activation_large_avg_size}), but not that (\ref{activation_large_avg_size}) implies (\ref{parameter_large_avg_size}) for every $j$. This means that some parameter combinations may be added to the coarse level that do not {\it have to} be there. This should cause no problem.
-
-\section{S2}
-The coarse level will have the same general layer structure as the fine level, so solving its equations can be done with the same procedures (relaxation and further coarsening).
-
-\section{S5--S6}
-\subsection{8.2 Multilevel Cycle}
-\label{sec:multilevel_cycle}
-{\bf a multilevel cycle} for approximately solving the NN stochastic optimization is composed of the following four steps.
-\begin{enumerate}
-    \item Several {\it relaxation} iterations (see Sec.~\ref{sec:8.3} below).
-    \item {\it Coarsening:} calculating the fine-to-coarse projection $Q$ as described above. (The same $Q$ can actually be reused by several successive cycles, so this calculation is done only one per several cycles). This, together with (\ref{8.5}) defines {\it the coarse level network} (depicted in Fig.~\ref{fig:fig2}). Note that the input activation to the coarse layer is the entire intermediate vector $a^c$, {\it not} divided into subsets according to the fine-level neighborhood used to create $a^c$; the coarse level will create its own neighborhoods.
-    \item {\it Recursion:} executing one or more multilevel cycles for approximately optimizing the coarse network; except that the {\it coarsest} level, employ relaxation only. Note that for more than two elvels the recursion should use FAS (see Sec.~\ref{sec:fas}).
-    \item {\it Interpolation:} as in the case of the fine-to-coarse projection $Q$, a great simplification and efficiency (supported by Conclusion II in App.~\ref{sec:x}) can be gained by choosing the coarse-to-fine interpolation ($P^*$ in (\ref{8.6})) to be the same at all output sheaves, determined by a corresponding interpolation derived for the corresponding input activations; namely,
-    \begin{equation}
-        P^* = \argmin \sum_p \sum_{m \in B} \left\{ a^m_i(p) - \sum_{k \in Z_i} P^*_{ik} a^{cm}_k(p)e\right\}^2\,.
-        \label{pstar_fit}
-    \end{equation}
-    As explained in Sec.~\ref{sec:5.3}, the stencil $Z_i$ could generally include activations not just from the neighborhood of $a_i$, but also from neighboring neighborhoods.
-\end{enumerate}
-
-\section{S7}
-\subsection{Relaxation: SGD for Low-Noise Combinations}
-\label{sec:sgd_relaxation}
-As explained in Sec.~\ref{sec:5.6} relaxation should be designed separately in each neighborhood, and should consist of SGD in terms of the low-noise normalized combinations of parameters belonging to the neighborhood. It is important that the relaxed combinations (nearly) span the space orthogonal to the high-noise combinations used for in coarsening described above (Sec.~\ref{sec:8.1}). For this purpose, the same SVD of each input-activation neighborhood is used for designing both coarsening and relaxation, the higher combinations (the high-noise ones, i.e. those corresponding to large SVD singular values) defined $Q$ and the rest -- the lower combinations, are used in relaxation; thus the same relaxation is used in all output sheaves. In the case of larger neighborhoods, economical approximate SVD should be used, as in Sec.~\ref{sec:5.4} So, the picture of relaxation is the same as Fig.~\ref{fig:2}, except that $a^c$, the vector of low-noise combinations, denoted $a^f$, and the steps of calculating the relaxation is as discussed for (\ref{8.5}), with $f$ replacing $c$,
-
-\section{S8}
-yielding the relaxation correction $\delta w^f$. This correction is added to the current weights $W$ using (\ref{8.6}) with $\delta w^f$ instead of $\delta w^c$, and (\ref{8.7}) with $a^{fm}_k$ replacing $a^{cm}_k$.
-
-Since all the combinations participating in the relaxation have uniformly-bounded low noise, a uniform averaging length can be used which yields a sufficiently good approximation to all their gradients (see App.~\ref{sec:B}). Then this low-noise relaxation becomes similar to relaxing a deterministic system. So (as generally described in Sec.~\ref{sec:5.5}), in case relaxation slows down before reaching small gradients for all the relaxed combinations (small compared with the current high-noise gradients), the low-noise processing can e,ploy multilevel acceleration similar to a deterministic acceleration.
 
 \section{T1}
 Bottom-up agglomerative algorithms (see \cite{17} for a comprehensive study) can be used when $n$ is not too large, but for large $n$ their quadratic $O(n^2)$ complexity makes them inefficient. Moreover, bottom-up approaches build on strong {\it binary} correlations, but in may cases no such correlations exist while there still exist larger mini-clusters that can be coarsened (having small CR for small REE). A top-down algorithm, such as RMC described below, should then be used to construct suitable miniclusters. With its nearly linear complexity it can in particular be used to {\it find} the strong binary correlations (in the case that they exist by not apriori known), if needed.
