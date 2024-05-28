@@ -517,7 +517,7 @@ averaging them over a suitable batch of samples, then multiplying the averages b
 \begin{enumerate}
     \item Several {\it relaxation} iterations (see Sec.~\ref{sec:8.3} below).
     \item {\it Coarsening:} calculating the fine-to-coarse projection $Q$ as described above. (The same $Q$ can actually be reused by several successive cycles, so this calculation is done only one per several cycles). This, together with (\ref{8.5}) defines {\it the coarse level network} (depicted in Fig.~\ref{fig:fig2}). Note that the input activation to the coarse layer is the entire intermediate vector $a^c$, {\it not} divided into subsets according to the fine-level neighborhood used to create $a^c$; the coarse level will create its own neighborhoods.
-    \item {\it Recursion:} executing one or more multilevel cycles for approximately optimizing the coarse network; except that the {\it coarsest} level, employ relaxation only. Note that for more than two elvels the recursion should use FAS (see Sec.~\ref{sec:fas}).
+    \item {\it Recursion:} executing one or more multilevel cycles for approximately optimizing the coarse network; except that the {\it coarsest} level, employ relaxation only. Note that for more than two levels the recursion should use FAS (see Sec.~\ref{sec:fas}).
     \item {\it Interpolation:} as in the case of the fine-to-coarse projection $Q$, a great simplification and efficiency (supported by Conclusion II in App.~\ref{sec:x}) can be gained by choosing the coarse-to-fine interpolation ($P^*$ in (\ref{8.6})) to be the same at all output sheaves, determined by a corresponding interpolation derived for the corresponding input activations; namely,
     \begin{equation}
         P^* = \argmin \sum_p \sum_{m \in B} \left\{ a^m_i(p) - \sum_{k \in Z_i} P^*_{ik} a^{cm}_k(p)e\right\}^2\,.
@@ -702,7 +702,10 @@ Another case should happen upon fine-tuning for a downstream task, which should 
 \label{sec:out_iteration}
 In many problems, the iterative solver is actually built on inner iterations (such as SGD) that serve outer iterations (such as generator/discriminator iterations in GAN algorithms or Q iterations in neural reinforcement learning). Typically in such situations, many outer iterations can be confined to the coarse levels of the inner solver, making those iterations both faster and more stable.
 
-Similarly, the fine-tuning of a pre-trained model to a new task may be mostly confined to the coarse levels of the pre-trained model.
+Similarly, the fine-tuning of a pre-trained model to a new task may be mostly confined to the coarse levels of the pre-trained model. Similarly, the fine-tuning of a pre-trained model to a new task may be mostly confined to the coarse levels of the pre-trained model.
+
+\subsection{15.6 Memory Efficiency}
+The organization of input activations and weights in mini-clusters allow storing only their differences from cluster centers, which can be done in a relatively lower accuracy, resulting in large store savings via quantization and low-dimensional projections (see App.~\ref{G.3}).
 
 \subsection{High Accuracy}
 \label{sec:high_accuracy}
@@ -737,7 +740,7 @@ The organization of input activations and weights in miniclusters allows storing
 The narrower the network task, the stronger the correlations at all layers, enhancing all the benefits listed above. Hence a lot can be gained by bifurcating a network at some layer into different sub-networks to deal with different sample domains or different input regions, with special attentions where needed. The multi-level framework may offer some tools to this end:
 \begin{itemize}
 	\item Fast first-response coarse networks (see Sec.~\ref{sec:network_compression}) can be employed to detect the need and places for attention and bifurcations.
-	\item A potential indicator for the need to split the data into different routes can appear in the formation of neighborhoods (Sec.~\ref{sec:neighborhoods}), when splitting the input samples into classes highly enhances the intra-neighborhood correlations within each class.
+	\item A potential indicator for the need to split the data into different routes can appear in the formation of neighborhoods (Sec.~\ref{sec:neighborhoods}), when splitting the input samples into different domains highly enhances the intra-neighborhood correlations within each domain (e.g., substantially reduces the error $E$ in (\ref{G.6})).
 \end{itemize}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -752,7 +755,7 @@ The narrower the network task, the stronger the correlations at all layers, enha
 \label{sec:sgd_eigenmode}
 We analyze \SGD~iterations, looking at one particular error eigen component of the Hessian, with eigen value $\lambda$.
 
-\textbf{Notation:} $\mu_k$= amplitude of true average of the error component after the k-th iteration. $\mu_k + r_k$ its average over the minibatch employed in the k-th iteration. (By ``minibatch" here we mean the batch of samples averaged over between successive \SGD~updates; this is \textbf{not} necessarily related to the batch of samples processed simultaneously based on hardware or parallelization considerations.) We assume $\mathbf{E}[r_k]=0$, $\mathbf{E}[r_k^2]=\sigma^2$, $\mathbf{E}[r_k,r_{k'}]=0$ for $k \neq k'$, where $\mathbf E[\cdot]$ denotes the expected value.
+\textbf{Notation:} $\mu_k$= amplitude of the \textbf{true} (world-wide) average of the error component after the k-th iteration. $\mu_k + r_k$ its average over the minibatch employed in the k-th iteration. (By ``minibatch" here we mean the batch of samples averaged over between successive \SGD~updates; this is \textbf{not} necessarily related to the batch of samples processed simultaneously based on hardware or parallelization considerations.) We assume $\mathbf{E}[r_k]=0$, $\mathbf{E}[r_k^2]=\sigma^2$, $\mathbf{E}[r_k,r_{k'}]=0$ for $k \neq k'$, where $\mathbf E[\cdot]$ denotes the expected value.
 $\rho$ = learning rate, $\beta=\lambda \rho \ll 1$, 
 
 In the k-th iteration 
@@ -765,9 +768,9 @@ or
 	\mu_k = \mu_{k-1} (1- \beta)  - \beta r_{k-1}
 	\label{eqn:muupdate2}
 \end{equation}
-Hence we can recursively derive:
+Hence we can prove by induction:
 \begin{equation}
-  \mu_k = (1-\beta)^k \mu_0 - \beta \sum_{i=0}^{k-1} (1-\beta)^i r_{k-i-1}
+  \mu_k = (1-\beta)^k \mu_0 - \beta \sum_{i=0}^{k-1} (1-\beta)^i r_{k-i-1}\,.
 \end{equation}
 
 %\begin{equation}
@@ -796,11 +799,11 @@ Therefore:
 \beta^2\sigma^2\frac{1-(1-\beta)^{2k}}{1-(1-\beta)^2}\,.
 \label{eqn:noise1}
 \end{equation}
-The usual \SGD~practice is to employ a fixed minibatch size. This means that the variance $\sigma^2$ is nearly fixed throughout the iterations for each eigen component, while $\mu$ should converge to $0$. For any component that converges reasonably fast, an especially for high-$\lambda$ components, $(1 - \beta)^{2k}$ is small, hence the variance is
+The usual \SGD~practice is to employ a fixed minibatch size. This means that the variance $\sigma^2$ for each eigen component is nearly fixed throughout the iterations, while $\mu$ should converge to $0$. For any component that converges reasonably fast, and especially for high-$\lambda$ components, $(1 - \beta)^{2k}$ is small, hence the variance is
 \begin{equation}
 \mathbf E \left [\left(\mu_k - \mathbf E [\mu_k] \right)^2 \right ] \approx \frac{\beta}{2} \sigma^2\,.
 \end{equation}
-For stability, this variance should be smaller than $\mu_0^2$, or $\lambda \rho < 2 \mu^2/\sigma^2$. Hence,
+For stability, this variance should be smaller than $\mu_0^2$, or $\lambda \rho < 2 \mu_0^2/\sigma^2$. Hence,
 $$
 	\rho < \min \left( \frac{2 \mu_0^2}{\lambda \sigma^2} \right) \sim
 	\lmax^{-1} \min_* \left( \frac{\mu^2}{\sigma^2} \right)\,,
@@ -818,7 +821,12 @@ Attempting to counter this slowness, \SGD~practice found it better not to insist
 
 The interesting fact is that \textbf{during this re-growth of the true gradient sizes, the loss function continues its decline, and the accuracy continues to improve}, i.e., the system continues its positive learning. This clearly shows that the learning mainly depends not on the diverging high-$\lambda$ components, but on the lower $\lambda$ components that continue to converge (albeit slowly). For them, the longer use of high $\rho$ is actually beneficial (which is exactly why practitioners find doing that useful).
 
-The multi-level training aims at treating the two problematic sides of the stochastic ill conditioning: First, it can apply only a small number of updates at the fine level, thus avoiding the large accumulation of noise at the high-$\lambda$ components. Second, and more importantly, by converging the low-$\lambda$ components in their lower dimensional subspace, both factors of slowness in (\ref{eqn:convrate1}) are largely mitigated: first, the lower dimensional subspace does not include components with eigenvalues larger than some $\llow$, allowing for $O(1/\llow)$ instead of $O(1/\lmax)$ learning rates. Secondly, the $\min_*$ minimization is over components with $O(\llow)$ instead of over $O(\lmax)$ eigenvalues, for which the ratios $\sigma/\mu$ may be  smaller. In contrast, in the usual (single-level) SGD algorithm, as the averages $\mu$ decrease, becoming mostly averages of lower-$\lambda$ components, the variances continue to include the variances typical of the highest-$\lambda$.
+\subsection{6.1 Non-uniform Noise}
+In the case that the sampling noise is nearly uniform (i.e., the variance $\sigma^2$ has comparable values for all components), a conventional multigrid-like training algorithm can treat the two problematic aspects of the stochastic ill-conditioning: first, it can apply only a small number of updates at the fine level (using $O(\mu^2/sigma^2)$ minibatch sizes, where $\mu$ is the current target accuracy), thus avoiding the large accumulation of noise at the high-$\lambda$ components. Second, the low-$\lambda$ components are converged in their lower dimensional subspace, which does not include components with eigenvalues larger than some $\llow$, allowing for $O(1/\llow)$ instead of $O(1/\lmax)$ learning rates.
+
+Often, however, the real problem is the non-uniformity of the noise, where some high-$\lambda$ components may be very noisy (having much larger $\sigma^2$ than others), forcing small $\varepsilon$ in (\ref{eqn:A.7)}. Therefore, the stochastic multilevel algorithm starts with separating low noise from higher noise (see Sec.~\ref{sec:5.6}).
+
+The coarsening with a wider kernel should yield much better coarsening ratios\footnote{Why?}. This, together with running most of the training at coarse levels, and using corresponding upscaling (see Sec.~\ref{sec:upscaling}) at inference time, may compensate for the increased number of parameters in a wider kernel network.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -840,51 +848,27 @@ where $\rho$ is the \textbf{learning rate} for the level (and layer) being train
 
 Since the minibatch yields only estimates $\tilde{\mu}_i$ and $\tilde{\sigma}_i^2$ to $\mu_i$ and $\sigma_i^2$, respectively, one needs to replace (\ref{gd_step}) by
 \begin{equation}
-  w_i \longleftarrow w_i - \rho \mu_i \min\left\{ 1, \frac{K \tilde{\mu}_i^2}{\theta \tilde{\sigma}_i^2} \right\}\,.
+  w_i \longleftarrow w_i - \rho \tilde{\mu}_i \min\left\{ 1, \frac{K \tilde{\mu}_i^2}{\theta \tilde{\sigma}_i^2} \right\}\,.
   \label{gd_step_k}
 \end{equation}
-where $\theta$ is some $O(1)$ constant, say, between $4--10$. Indeed, for $\tilde{\mu}_i$ to be a reasonable approximation to $\mu_i$, it should be an average over $k_i = \theta \tilde{\sigma}_i^2/\tilde{\mu}_i^2$ samples; if $K > k_i$, then the minibatch already includes long enough averaging; but if $K < k_i$ then we have to average over $k_i/K$ minibatches, so we have to multiply the minibatch average by $K/k_i$.
+where $\theta$ is some $O(1)$ constant, say, between $4$ and $10$. Indeed, for $\tilde{\mu}_i$ to be a reasonable approximation to $\mu_i$, it should be an average over $k_i = \theta \tilde{\sigma}_i^2/\tilde{\mu}_i^2$ samples; if $K > k_i$, then the minibatch already includes long enough averaging; but if $K < k_i$ then we have to average over $k_i/K$ minibatches, so we have to multiply the minibatch average by $K/k_i$.
 
-What should the minibatch size $K$ be? A reasonable choice is a weighted average of all $k_i$, with weight reflecting each gradient's importance (or size), e.g.,
+What should the minibatch size $K$ be? For vanilla \SGD, a reasonable choice is a weighted average of all $k_i$, with weight reflecting each gradient's importance (or size), e.g.,
 \begin{equation}
   K_* = \frac{\sum_i \tilde{\mu}_i^2 k_i}{\sum_i \tilde{\mu}_i^2}\,,
   \label{k_star}
 \end{equation}
 where $i$ runs over all parameters (or all parameters of a layer, if different layers are updated separately). Choosing $K$ smaller than $K_*$ is fine, but if it is \textbf{much smaller} then too many steps (\ref{gd_step_k}) are made to accumulate one reliable correction, which adds unnecessary overhead and noise to the process. On the other hand, $K$ should not be \textbf{much larger} than $K_*$, lest too long averaging is done per correction step.
 
-We use minibatches of size $K = K_*$, in which case one correction step is (roughly) equivalent to one \textbf{deterministic} Gradient Descent (GD) step, i.e., it employs (approximately) the \textbf{true} gradients. We call the iteration (\ref{gd_step_k}) with $K = K_*$ \textbf{quasi GD iteration}.
-
-\subsection{Sampling noise. Needed Averaging Length (NAL).}
-\label{sec:sampleing_noise}
-Suppose we have random variable $X$ with mean $\mu$ and variance $\sigma^2$. 
-Lets assume we need to estimate this mean $\mu$. The standard method would be to sample and calculate the {\it sample mean} $S_K$ using $K$ samples $x_i$ of $X$:
+In the case of the low-noise relaxation introduced in Sec.~\ref{sec:8.3}, SGD is applied to gradient {\it combinations} with uniformly bounded variance $\sigma_i^2 \leq \sigma_*$, and we need to reduce all their true averages to around or below a uniform value $\mu_*$. We can then use a minibatch of length
 \begin{equation}
-S_K = \frac{1}{K}\sum_{i=1}^K X_i
-\label{eqn:estimate}
+    k_* = \theta \sigma_*^2 / \mu_*^2\
+    \label{k_star}
 \end{equation}
-Why the sample mean is a good predictor for $\mu$? Because the law of large numbers shows that  our estimator can get as close as needed to the true value as we increase the number of samples:
+to obtain good estimates of the true averages of all those gradients, and apply the correction
 \begin{equation}
-\lim_{K \rightarrow \infty} S_K = \mathbb{E} X = \mu
-\end{equation}
-But, how many samples do we need to use for an accurate estimation?  In other words how far could our estimator $S_K$ deviate from the true mean $\mu$? We definitely do not want the deviation to be larger than the quantity we are trying to estimate ($\mu$): 
-\begin{equation}
-\mathbb{E}(S_k - \mu)^2 \le \theta \mu^2
-\label{eqn:snr_req}
-\end{equation}
-The parameter $0 < \theta < 1$ determines the needed accuracy. Note that for any $K>0$ the expected value of $S_K$ is exactly the mean $\mu$ we are aiming to estimate and therefore the equation above represents (by definition) the variance of $S_K$:
-\begin{equation}
-\mathbb{E}(S_K - \mu)^2 = \var(S_K) 
-\end{equation}
-Calculating this expectation and assuming that our samples are independent we get:
-\begin{equation}
-\var(S_K) = \frac{\sigma^2}{K}
-\end{equation}
-
-The dependency on $K$ is a basic property of our estimator. If we somehow know or can get a descent estimate of the magnitude of $\mu$ and $\sigma$ then we can determine the \textbf{Needed Averaging Length (NAL)}: the minimum number of samples we will need to take in order to get to the accuracy we defined in (\ref{eqn:snr_req}), which is
-\begin{equation}
-\frac{\sigma^2}{K \mu^2} \le \theta \quad \Longrightarrow \quad K = 
-\ceil{\frac{\sigma^2}{\theta \mu^2}}\,.
-\label{eqn:snri}
+    w_i \longleftarrow w_i - \rho \tilde{\mu}_i \text{ for all combinations } i\,.
+    \label{correction_tilde}
 \end{equation}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -892,44 +876,41 @@ The dependency on $K$ is a basic property of our estimator. If we somehow know o
 \section{Production and Use of Low-GER Examples}
 \label{sec:low_ger}
 
-We describe here how the production and use of low-GER examples can be done at all levels throughout the solution process, without needing to store then. We only store the (sparse) interpolation $P$ at each level, which is continuously updated and improved to an increasingly higher accuracy as additional, increasingly-lower GER examples are generated on-the-fly.
+We describe here one way for the production and use of low-GER examples at all levels throughout the solution process, without needing to store them. We only store the (sparse) interpolation $P$ at each level, which is continuously updated and improved to an increasingly higher accuracy as additional, increasingly-lower GER examples are generated on-the-fly. (Change GER to RER for the case of distributive relaxation; see Sec.~\ref{sec7.1}.)
 
-Generally, the multi-level cycles \textbf{increasingly} contain more levels: starting with two-level cycles, increasingly coarser levels are added at subsequent cycles. At each level, the interpolation can have low accuracy at first, but should become increasingly more accurate as the number of coarser levels grows. This is because at higher (coarser) levels the GER is much lower, so much larger learning rates are employed, which in turn cause much greater amplification of high-GER interpolation errors.
+Generally, the multi-level cycles \textbf{increasingly} employ more levels: starting with two-level cycles, increasingly coarser levels are added at subsequent cycles. At each level, the interpolation can have low accuracy at first, but should generally become increasingly more accurate as the number of coarser levels grows. This is because at higher (coarser) levels much larger learning rates are employed, which in turn cause much greater amplification of high-GER interpolation errors.
 
-For clarity, we first describe the \textbf{deterministic} optimization case, then the modifications for the general \textbf{stochastic} case and the special case of neural network training.
+For a {\it deterministic} {\it linear} system of equations, $Ax = b$, producing low-GER test functions is quite straightforward: just apply your relaxation iterations to the homogeneous equation $Ax = 0$, starting from a random initial approximation $x$. When the iteration slows down the current approximation (which is also the current error $e$, since the solution is $0$) is an example of a {\it relaxed} error, a lower-GER error. Starting with another random error, another low-GER example is produced; and so on. To produce examples with still-lower GER (if needed), apply the to homogeneous equation not just your relaxation, but your current multilevel cycles.
+
+For the deterministic {\it nonlinear} system $A(x) = b$ one can apply the same procedure to the system $A(y) = A(x_0)$, where $x_0$ is the current approximate solution and $y = x_0 + e$, $e$ being initially a random perturbation. The initial as well as all subsequent-iteration residuals $A(x_0) - A(y)$  throughout this procedure should be large compared with $b - A(x_0)$, the current residual, for the procedure to produce a good example of a relaxed error. Also, the iterations should converge $y$ to $x_0$, which is not always guaranteed in nonlinear systems. So the procedure is quite limited in producing high-accuracy examples of relaxed errors. Still, it should be adequate for producing reasonable first approximations to $P$ and $Q$ \footnote{Why?}. And in the stochastic case, good initial coarsening is provided by the sequence of samples described in Sec.~\ref{sec:5.5}. Then, to get more or higher-accuracy examples, one can generally use the following steps.
 
 \subsection{The Deterministic Case}
-At every level, the GD iterations efficiently liquidate the highest-GER error components, and then start to struggle with progressively reducing lower GER components. So the differences between successive approximations tends to have progressively lower GER. Hence, the parameter correlations of low GER components, especially the stronger correlations, will increasingly surface. This will signal the point at which transition should be made to the next coarser level. Also, the strong correlations can be used to miniclusters the parameters into small neighborhoods and build from them a sparse and crude projection $Q$, and interpolation $P$. Higher accuracy interpolation would require additional low-GER examples, which unfortunately cannot be efficiently obtained from the GD iteration, as these iterates are slow to change low-GER components.
+At every level, the relaxation iterations efficiently liquidate the highest-GER error components, and then start to struggle with progressively reducing lower GER components. So the differences between successive approximations (and even more, the difference between two approximations many iterations apart) tend to have progressively lower GER. Hence, the parameter correlations of low GER components, especially the stronger correlations, will increasingly surface. (Generally,correlations between variables (or between gradients) converge much sooner than the variables (or gradients) themselves.) This will signal the point at which transition should be made to the next coarser level. Also, the strong correlations can be used to minicluster the parameters into small neighborhoods and build from them a sparse and crude projection $Q$, and interpolation $P$. Higher accuracy interpolation would require additional low-GER examples, which unfortunately cannot be efficiently obtained from the relaxation iterations, as these iterates are slow to change low-GER components.
 
-For the first visit to the next coarser level, the low accuracy of $Q$ and $P$ should suffice to create a coarse level that efficiently reduces the initial low-GER errors. As a result, upon interpolating the changes to the fine level and applying GD there, the slowing down of the GD iterations now reveals a \textbf{new} low-GER example, much different from the ones that were used to calculate the low-accuracy $P$. This new low-GER example can thus be used to improve $P$.
+For the first visit to the next coarser level, the low accuracy of $Q$ and $P$ should suffice to create a coarse level that efficiently reduces the initial low-GER errors. As a result, upon interpolating the changes to the fine level and applying relaxation there, the slowing down of the relaxation now reveals a \textbf{new} low-GER example, much different from the ones that were used to calculate the low-accuracy $P$. This new low-GER example can thus be used to improve $P$.
 
 A new example $e_{NEW}$ can change an existing interpolation $P_{OLD}$ to a new, improved one $P_{NEW}$ through the (trivial to solve) minimization
 \begin{equation}
-  P_* = \argmin_{P \in Z} \left\{ \left\| P - P_{OLD} \right\| \,\, | \,\, e_{NEW} = P Q e_{NEW} \right\}
+  P_* = \argmin_{P_* \in Z} \left\{ \left\| P_* - P_{OLD} \right\| \,\, | \,\, e_{NEW} = P_* Q e_{NEW} \right\}
 \label{p_star}
 \end{equation}
 and the under-correction
 $$
   P_{NEW} = P_{OLD} + \theta \left( P_* - P_{OLD} \right)\,,
 $$
-  with some $0 < \theta \leq 1$. More and more examples can in this way gradually improve the interpolation \textbf{weights}. To increase the interpolation accuracy one can gradually also expand the interpolation \textbf{stencils} $Z$ (to neighboring neighborhoods, as mentioned above). A new expansion is due when the last expansion is shown to have been highly beneficial, as measured on new examples.
+with some $0 < \theta \leq 1$. More and more examples can in this way gradually improve the interpolation \textbf{weights}. To increase the interpolation accuracy one can gradually also expand the interpolation \textbf{stencils} $Z$ (to neighboring neighborhoods, as mentioned).
 
-Thus, at any level, before switching to a coarser level the interpolation $P$ can be improved, effectively by producing and using an error example for which the algorithm has so far been inefficient. As cycles progress to high levels producing lower GER examples, more accurate interpolations will emerge as needed.
+Thus, at any level, before switching to a coarser level the interpolation $P$ can be improved, effectively by producing and using an error example for which the algorithm has so far been inefficient. As the cycles progress to high levels producing lower GER examples, more accurate interpolations will emerge as needed.
 
 Note that this gradual change of interpolation is particularly fitting in solving highly \textbf{nonlinear} problems, where the Hessian gradually changes during the solution process.
 
-\subsection{The Stochastic Case}
-The same algorithm can basically be used with quasi GD iterations (see App.~\ref{sec:control}) instead of GD iterations. Here it would be important to make sure that the low-GER differences between iterates are not masked by the accumulation of noise (as described in App.~\ref{sec:sgd_eigenmode}). The quasi GD iterations should therefore be terminated as soon as the gradient starts to grow, and supplemented with a quasi-GD iterations with a much smaller learning rate, before extracting a low-GER example.
-
-\subsection{Activation-based Neural Network Coarsening}
-\label{sec:act-based-coarsening}
-As explained in Sec.~\ref{sec:nn_coarse1}, the first, low-accuracy $Q$ and $P$ are based on activation correlations over different samples (instead of different low-GER examples). $P$ should then be \textbf{improved} by low-GER examples in the way described above.
+In the \textbf{stochastic case}, the same algorithm can basically be used with quasi GD iterations (see App.~\ref{sec:control}) applied to the low-noise combinations (see Sec.\ref{sec:5.5}). Here it would be important to make sure that the low-GER differences between iterates are not masked by the accumulation of noise (as described in App.~\ref{sec:sgd_eigenmode}; but the noise here is only that of the low-noise combinations). The quasi GD iterations should therefore be terminated as soon as the gradient starts to grow, and supplemented when needed with a quasi-GD iterations with a much smaller learning rate, before extracting a low-GER example.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Comparative Learning}
 \label{sec:tunning}
-\textbf{The comparative learning of a network $A$ guided by a network $B$ over a segment $C$ in } ($C$ containing one or multiple layers of $A$ as well as one or more layers of $B$) is defined as iteratively correcting the parameters of segment $C$ in $A$ to minimize the average over all data of the $l_2$ norm of the difference between the outputs of network $A$ and $B$, after applying both to the same input (i.e. a feed-forward pass) over segment $C$.
+\textbf{The comparative learning of a network $A$ guided by a network $B$ over a segment $C$} ($C$ containing one or multiple layers of $A$ as well as one or more layers of $B$) is defined as iteratively correcting the parameters of segment $C$ in $A$ to minimize the average over all data of the $l_2$ norm of the difference between the outputs of network $A$ and $B$ at the end of segment $C$, after applying both to the same input to segment $C$.
 
 Each iteration uses a batch of samples. Each sample is fed forward through the network common to $A$ and $B$ until the start of segment $C$, and then separately through the $A$ version and $B$ version of the segment. Regarding the $l_2$ norm of the difference between the two versions at the end of segment $C$ as a loss function, one calculates by back propagation the gradients of segment $C$ in network $A$. Averages of these gradients over the batch, multiplied by a suitable learning rate, are used to correct the \textbf{learned} layers (not the projection/interpolation layers) of version $A$ of segment $C$.
 
@@ -939,8 +920,8 @@ Comparative learning is usually local (since a larger segment $C$ can usually be
 
 \section{Representative Sample Ordering}
 \label{sec:ordering}
-The noise in training a network stems from the variance between batch averages. This variance can be significantly lowered by having the batches more similar to each other in their composition; in other words, having the sample composition of each batch as representative as possible of the composition of the entire training set. By a ``batch'' here we do not necessarily mean a minibatch, but actually a stretch of samples comparable to the \NAL~ of each gradient. 
-Since different gradients have different {\NAL}s (and each \NAL~depends on the sample ordering), we are actually interested in ordering the samples so that \emph{any} extended interval in that ordering will be as representative as possible. This is expected to be particularly important for averaging higher-level gradients, whose {\NAL}s are much shorter, and for our protobatch statistics to be as representative as possible of other batches. 
+The noise in training a network stems from the variance between batch averages. This variance can be significantly lowered by having the batches more similar to each other in their composition; in other words, having the sample composition of each batch as representative as possible of the composition of the entire training set. By a ``batch'' here we do not necessarily mean a minibatch, but actually a stretch of samples comparable to the Needed Averaging Length (\NAL)~ of each gradient. 
+Since different gradients have different {\NAL}s (and each \NAL~depends on the sample ordering), we are actually interested in ordering the samples so that \emph{any} extended interval in that ordering will be as representative as possible.
 
 Our general approach for achieving more representative sample ordering is as follows. We divide the set of training samples into disjoint subsets, different samples within the same subset being as ``similar'' to each other as possible (in a sense to be discussed below). The training sampling visits sequentially all the subsets in a random order. After visiting all the subsets, they are visited again in a new random order, and so on. In each visit to a subset only one sample is taken from it; the next sample in the subset will be taken upon the next visit to the subset. The samples within each subset are also ordered randomly, and re-ordered randomly once all of them have been taken.
 
@@ -958,12 +939,12 @@ At the beginning of training, the subsets are based on the labels; e.g., each su
 \subsection{Similarity Metric}
 We first experimented with clustering based on the $L_2$ distance between the vectors of last-layer activations. The produced sample ordering did yield some improvements in training accuracy, but those were really significant only in the case of a toy problem, where the vector length (the number of last-layer activations) was just $10$. Very slight improvements were gained for vectors of length $100$ or $1000$. 
 
-These results may be due to the metric we have used. Indeed, the $L_2$ distance between very long vectors can easily be dominated by the many distances between insignificant activations. We plan to experiment with a much more meaningful metric, based on bi-clustering samples/activations (See Section \ref{sec:bi-clustering}). One added advantage of this metric is that one does not have to decide which network layer to use. Using several layers, for each cluster the algorithm would automatically give preference to the activations more relevant to it. All the most noisy layers (those with the largest {\NAL}s) should be used. 
+These results may be due to the metric we have used. Indeed, the $L_2$ distance between very long vectors can easily be dominated by the many distances between insignificant activations. A much more meaningful metric can be based on bi-clustering samples/activations (See Section \ref{sec:bi-clustering}). One added advantage of this metric is that one does not have to decide which network layer to use. Using several layers, for each cluster the algorithm would automatically give preference to the activations more relevant to it. All the most noisy layers (those with the largest {\NAL}s) should be used. 
 
-We will also try a ``higher'' metric, based on bi-clustering of samples vs. higher-level activations (Section \ref{sec:act-based-coarsening}).
+In a multilevel training one can also try a ``higher'' metric, based on bi-clustering of samples vs. higher-level activations.
 
 \subsection{Multi-level Ordering}
-The clustering (and bi-clustering in particular) can be hierarchical. The hierarchical clustering can be used for multi-level sample ordering, generating the two-level ordering described above. 
+The clustering (and bi-clustering in particular) can be hierarchical (see App.~\ref{sec:bi-clustering}). The hierarchical clustering can be used for multi-level sample ordering. In each visit to a father subset one of its children sub-subsets is visited according to a random ordering, which is replaced by another random ordering once the sub-subsets have been visisted.
 
 \subsection{Fuzzy Ordering}
 The (bi) clustering can be fuzzy, where each sample has a certain probability of belonging to each of several subsets. In such a case, the probability of each sample to participate in each ordering or re-ordering of a subset should equal its probability of belonging to the subset. The weight $|\mathbb{S}|$ of a subset $\mathbb{S}$ should then be defined as the sum of its sample probabilities. 
@@ -1043,42 +1024,193 @@ The clustering metric at high levels, should often take into account not just th
 where $\bar{\beta_n}$ is the value of $\beta_n$ in the previous iteration. Step (2) of \eqref{eqn:bistep} is similarly modified. In the first iteration $\bar{\beta_n}=0$ or random $(-1,1)$. Similarly to the 
 \underline{inter}-partition averaging \eqref{eqn:b2}, \underline{intra}-partition weights at the higher level are then defined by averaging the corresponding intra-partition weights from the lower level.
 
-\section{Sparse Linkage Clustering}
+\section{Mini-Clustering}
 \label{sparse_linkage_clustering}
-Given the set of \textbf{feature vectors} $E_1, \dots, E_n \in \Real^K$ and a distance metric $d(\cdot, \cdot)$, we would like to partition them into \textbf{small} neighborhoods, i.e., many clusters, each containing a few proximal objects. This task arises in building local neighborhoods of highly-correlated network parameters (Sec.~\ref{sec:neighborhoods}), as part of the coarsening construction. In that case $E_i=(E^1_i,\dots,E^K_i)$ is the vector of values of the $i${\it th} parameter in $K$ low-GER examples, and $d$ is defined by (\ref{dij}).
+Given the set of \textbf{vectors} $x_1, \dots, x_n \in \Real^K$ and a distance metric $d(\cdot, \cdot)$, we would like to partition them into \textbf{small} neighborhoods, i.e., many clusters, each containing a few proximal objects. This task arises in building local neighborhoods of highly-correlated network parameters (Sec.~\ref{sec:neighborhoods}), as part of the coarsening construction. In that case $x_i=(x^1_i,\dots,x^K_i)$ is the vector of values of the $i${\it th} parameter in $K$ low-GER examples, and $d$ is defined by (\ref{dij}).
 
-Our approach is a variant of single-linkage clustering optimized for our needs, which we describe below; see \cite{clustering_book} for a comprehensive survey of bottom-up agglomerative clustering, and in particular, standard single-linkage clustering.
+Bottom-up agglomerative algorithms (see \cite{17} for a comprehensive study) can be used when $n$ is not too large, but for large $n$ their quadratic $O(n^2)$ complexity makes them inefficient. Moreover, bottom-up approaches build on strong {\it binary} correlations, but in may cases no such correlations exist while there still exist larger mini-clusters that can be coarsened (having small CR for small REE). A top-down algorithm, such as RMC described below, should then be used to construct suitable miniclusters. With its nearly linear complexity it can in particular be used to {\it find} the strong binary correlations (in the case that they exist by not apriori known), if needed.
 
-The algorithm takes two inputs: the maximum cluster size $c > 1$, and distance threshold $\dmax$. Only vectors with distance $\leq \dmax$ are clustered together.
+\subsection{G.1 Recursive Mini Clustering: $S^1 = \text{RMC}(S^0)$}
+Given a set $S^0$ of vectors in $\Real^m$, our aim is to construct a set $S^1$ of many disjoint miniclusters whose union is $S^0$. By ``minicluster`` we mean a small subset of highly correlated vectors.
 
-{\mbox{}}\\ \noindent
-\textbf{Step A: Calculate the sparse distance matrix.} We calculate the \textbf{sparse} distance matrix $D$ containing only distances $\in (0, \dmax]$ (note that this excludes the diagonal). The naive way is to calculate the entire matrix and threshold it, which is fine for the activation-based coarsening of Sec.~\ref{sec:act-based-coarsening}, as the complexity is $O(n^2)$ where $n$ is the number of \text{activations}, but is still linear in the number of \textbf{parameters}. Furthermore, the calculation can be vectorized (as $d$ depends on dot products). More generally, quadratic complexity can be avoided by running a top-down multilevel $k$-means-like algorithm called \textbf{mini-clustering} (App.~\ref{sec:additional}), which requires only $O(n \log n)$ operations to find all strong connections. Once constructed, $D$ is stored in compressed-column format (matrix construction requires $O(n)$ with radix sort of the list of connections/non-zeros, although in practice quicksort is often faster). 
+RMC first divides $S^0$ into $k$ (a small number) subsets $(S^0_1,S^0_2,\dots,S^0_k)$ using a standard k-means algorithm \cite{kmeans}, and defines the first approximation to $S^1$ as the union of miniclusters of all subsets. \footnote{Unclear. Miniclusters of $S^0_i$ have not yet been defined here.} This $S^1$ may not be good enough because the k-means division may have placed many close neighbors (highly correlated vectors) in different subsets. An improvement to $S^1$ is obtained by redefining the miniclusters using k-means within each super-minicluster, where the super-miniclusters are obtained by applying RMC to the set $S^1$. (Each member of $S^1$ is not a vector but a mini cluster of vectors, so for RMC it is represented by its center, i.e., the average of its vectors). Indeed, additional improvement steps of this type can be further applied.
 
-{\mbox{}}\\ \noindent
-\textbf{Step B: Agglomerate.} This follows the single-linkage greedy process that clusters the closest pair at each step. The difference is that \textbf{$D$'s sparsity pattern is kept fixed}. Let $D(i, :)$ denote the $i${\it th} row of $D$ and $D(:, i)$ be the $i${\it th} column. 
-\begin{enumerate}
-	\item Initialize $n$ clusters $C_i$, each containing an individual object. Mark all $i=1,\dots,n$ as active. 
-	\item Find the minimum distance between two clusters; suppose these are $C_i$, $C_j$ with $i \not = j$.
-	\item While $d_{ij} \geq \dmax$, run steps 4-9.
-	\item Set $C_i \leftarrow C_i \cup C_j$.
-	\item Mark $j$ as inactive. Set the non-zero elements of the $j${\it th} row of $D$ to $\infty$.
-	\item Set the non-zero elements of the $i${\it th} row and column of $D$ to $d(C_i, l)$ for all $l$ (such that $d_{il} \not = 0$).
-	\item  Let $F := \left\{ l : |C_l| > c - |C_i| {\mbox{ or }} l {\mbox{ is inactive}} \right\}$. Set $d_{il} \leftarrow \infty$ for all $l \in F$.
-	\item Set $D(:, i) \leftarrow D(i, :)^T, D(:, j) \leftarrow D(j, :)^T$ to keep $D$ symmetric.
-	\item Find the new minimum distance $d_{ij}$ between two clusters $i$, $j$.
-\end{enumerate}
-Because $D$'s sparsity pattern is fixed, all operations are fast, as the CSR index and data arrays do not need to be resized or reallocated. The only non-contiguous operation is step $8$ (column updates), which can be executed quickly by also maintaining a compressed-column (CSC) format of $D$ and a lookup mapping between the CSC and CSR arrays. If $D$ has $m$ non-zeros per row, steps 4, 5, 7 and 8 require $O(m)$ operations.
-
-In step 6, we calculate the distances between a cluster $C_i$ and points $l$. $d(C_i, l)$'s definition depends on the specific application. For our coarsening, let $E$ be the matrix whose columns are $E_1,\dots,E_n$. Let $E(:, C_i)$ be the sub-matrix comprising of the columns belonging to $C_i$. We define the cluster vector as the principal component of $E(:, C_i)$ (i.e., the right singular vector corresponding to the largest singular value), which serves as the new value of $E_i$. $d(C_i, j)$ is then conveniently defined again by (\ref{dij}). Calculating the SVD requires $O(|C_i| K^2 + K |C_i|^2)$, but the principal component can be well approximated by a few iterations of the method power method on $E(:, C_i)$, reducing the cost to $O(|C_i| K) \leq O(c K)$.
-
-The total clustering complexity is bounded by $O((log n + (c K + m)(1-1/c)) n)$, as at most $n - n/c$ clustering steps are executed, compared with $O(n^2)$ required by standard single-clustering implementations (e.g., based on  Prim's algorithm \cite{clustering_book}).
-
-\section{Additional Planned Sections}
-\label{sec:additional}
+{\bf Notation.}
 \begin{itemize}
-	\item Continuation: defining and obtaining the solution to the non-linear optimization problem as the limit of a chain of increasingly complex sub-problems.
-	\item Mini-clustering: clustering $n$ vectors in a metric space into $O(n)$ coarse neighborhoods from in $O(n \log n)$ operations using a top-down multi-level algorithm. 
+    \item $S^0 = \left\{x_i\right\}_i$: the given set of vectors, $x_i \in \Real^m$.
+    \item $S^1 = \left\{x_i^1\right\}_i$: set of miniclusters.
+    \item $S^2 = \left\{x_i^2\right\}_i$: set of miniclusters of miniclusters. \footnote{Also denoted super-miniclusters above, which is confusing to a reader.}
+    \item $(S^0_1,S^0_2,\dots,S^0_k)$ : subsets of $S^0$.
 \end{itemize}
+
+% TODO: replace by algorithmic environment.
+{\bf Function $S^1 = \text{RMC}(S^0)$.}
+\begin{enumerate}
+    \item If $|S^0| < k_1$ or $\text{radius}(S^0) < R_1$, then assign $S^0$ as  a mini-cluster. Otherwise:
+    \item $k = \min\left\{k_2, \ceil*{\frac{|S^0|}{k_1}} \right\}\,.$
+    \item $\left\{S^0_1,S^0_2,\dots,S^0_k\right\} \longleftarrow \text{k-means}\left(S^0\right)\,.$\footnote{The k-means algorithm here is missing some descriptive details. What is the initial guess for] the centers? How many iterations do we perform?}
+    \item $S^1 \longleftarrow \bigcup_{i=1}^k \text{RMC}\left(S^0_i\right)\,.$
+    \item $S^2 \longleftarrow \text{RMC}\left(\text{centers}\left(S^1\right)\right)\,.$
+    \item $S^1 \longleftarrow \bigcup_{x_j^2 \in S^2} \text{k-means}\left(\bigcup_{x_i^1) \in x^2_j} \text{center}x_i^1 \right)\,.$
+    \item Possibly repeat steps 5--6 several times.
+    \item Return $S^1$\,.
+\end{enumerate}
+
+\subsection{G.2 Operation Count}
+Let $\mu$ be the number of $S^1$ improvement iterations (steps 5--6) applied. Assume for simplicity that $k_1 = k_2 = k$, and that $k$ and $\mu$ are constant at all RMC levels. Let $a k n$ and $b k n$ be the number of operations in the k-means of Steps 3 and 6, respectively. Let $f(n)$ be the operation count of $\text{RMC}(S^0)$. The RMC recursion implies
+$$ f(n) = k f\left \frac{n}{k} \right) + a k n + \mu \left(f\left( \frac{n}{k} \right) + b k n\right)\,, \quad f(k^2) = b k ^3\,. $$
+Defining $g(n) = f(n)/n$, one gets
+\begin{equation}
+    g(n) = \left(1 + \frac{\mu}{k}\right) g\left( \frac{n}{k} \right) + (a + \mu b) k\,,
+    \quad g(k^2) = b k\,.
+    \label{eqn:G.1}
+\end{equation}
+Assuming $n = k^{\nu}$ and denoting $h_{\nu} = g(n) = g(k^{\nu})$, $r = 1 + \mu/k$ and $A = (a + \mu b)k$, we get
+\begin{equation}
+    h_{\nu} = r h_{\nu-1} + A\,,\quad h_2 = b k\,,
+    \quad g(k^2) = b k\,,
+    \label{eqn:G.2}
+\end{equation}
+which for $\mu > 0$ implies
+\begin{equation}
+    h_{\nu} = r^{\nu-2} \left( b k + \frac{A}{r-1} \right) - \frac{A}{r-1}\,, \quad \nu \ geq 2.
+    \quad g(k^2) = b k\,,
+    \label{eqn:G.3}
+\end{equation}
+Since $\nu = \log n / \log k$, choosing $k$ such that
+\begin{equation}
+    k \log k \geq \mu \left( \log n - 2 \log k\right),,
+    \label{eqn:G.4}
+\end{equation}
+it follows that $r \leq 1 + \frac{1}{\nu-2}$ and hence $r^{nu-2} \leq e$. Then
+\begin{equation}
+    g(n) = h_{\nu} \leq e b k + \left( \frac{a}{\mu} + b \right) (e-1) k^2\,.
+    \label{eqn:G.5}
+\end{equation}
+For example, for $\mu = 1$ and $n = 10^3, 10^6, 10^9$ and $10^{12}$, (\ref{G.4}) is satisfied by $k = 4,6,8$ and $10$, respectively. So (\ref{G.5}) yields for $\mu = 1$
+\begin{align}
+    g(10^3) &\leq& 27.5 a + 38.4 b \\
+    g(10^6) &\leq& 62 a + 79 b \\
+    g(10^9) &\leq& 110 a + 132 b \\
+    g(10^12) &\leq& 172 a + 205 b\,.
+    \label{eqn:G.6}
+\end{align}
+For $\mu = 0$, if we choose $k = 10$, (\ref{G.2}) entails
+\begin{equation}
+    g(10^{\nu}) \leq 10 (\nu - 2) a + 10 (\nu - 1) b\,.
+    \label{eqn:G.7}
+\end{equation}
+To emphasize the smallness of $a$ and $b$, note that there is no need to fully converge each of the k-means calculations. We are only interested in the smallness of the clusters' average radius, which does not significantly change after just few k-means iterations.
+
+\subsection{G.3 Further Efficiency Notes}
+In many (perhaps inmost practical) problems, although the overall dimension $m$ may be high, at each scale of the problem the data is {\it locally low dimensional}. For such problems, even though the local low dimensional space may not explicitly be given, the RMC algorithm should work well even with $\mu = 1$. This is because at low dimension the k-means clusters would have many more points in their interior than close to their boundary, so only few close neighbors will end up belonging to different k-means clusters.
+
+Note that to be successful, the algorithm need not mini-cluster together all pairs of strongly coupled vectors. {\it Particularly} strongly coupled pairs will be miniclustered together with high probability, but many other strongly coupled vectors may not be miniclustered together; they will however belong to strongly coupled miniclusters that will subsequently be clustered together at a higher coarsening level.
+
+In RMC applications that aim at larger miniclusters (more than just a couple of vectors per minicluster) the correction (steps 5--6 of the algorithm) is not likely to significantly change the average cluster radius, so $\mu=0$ can safely be used.
+
+Also, each k-means procedure, especially when larger clusters are sought, can be much accelerated by a {\bf multilevel} approach which first finds cluster centers using only a small random subset instead of the full set of vectors, then improve the center positions using a larger random subset, etc. Only one iteration needs to be performed with the full set of vectors, so the overall work need not be larger than the work of two full k-means iterations.\footnote{Provided that the random subset is doubled at each level of this multilevel procedure.}
+
+Finally, much further acceleration can be gained by {\bf random-projection hashing and quantizations.} Indeed, at the first RMC level, where k-means subdivides the entire set of vectors into few large subsets, low accuracy is sufficient in measuring distances. One can then use a random projection that represents each vector by a much shorter vector, and that short vector can be quantized to a much lower precision. As one proceeds to progressively finer clusters higher accuracy is required, but each vector can then be represented by its difference from the parent-cluster center. Relative to that difference, low accuracy is again sufficient, again allowing representation by shorter and quantized vectors.
+
+Importantly, note that this approach can also yield a {\bf very compact storage}, enabling fitting very long inputs into memory. Each vector is represented by its hashed-and-quantized distance from its minicluster center; tje centers are similarly represented by their hashed-and-quantized differences from the center of the parent cluster; etc.
+
+Note that the RMC algorithm is {\bf highly parallelizable}.
+
+\subsection{G.4 Hidden Miniclusters}
+Let again $S^0 = \left\{x_i\right\}_i$ be the set of input activations, $x_i \in \Real^m$. We search for an {\it ``association matrix''} $T \in \Real^{\bar{m} \times m}$ such that the set $\left\{T x_i\right\}_i$ has as good as possible aggregates (miniclusters), by which we mean as small as possible Lagrangian $L_a = E + \lambda n$, where $E$ is a chosen error metric, $n$ is the number of miniclusters, and $\lambda$ is a chosen Lagrange multiplier.
+
+$E$ and $\lambda$ depend on the use case Denoting $u_i = T x_i$, a typical example of $E$ is the ratio
+\begin{equation}
+    E = \sum_i \left\| u_i - C_{I(i)} \right\| / \sum_i \left\| u_i \right\|
+    \label{clustering_error_metric}
+\end{equation}
+with some chosen norms, where $C_{I(i)}$ is the center of the $I${\it th} minicluster to which $u_i$ belongs. (In calculating derivatives of $E$ one can consider the denominator of (\ref{clustering_error_metric}) and the center $C_I$ to be frozen.) \footnote{Wouldn't it make sense then, in order to define a consistent optimization problem, to define $E$ with a frozen denominator and centers, not just the derivatives of $E$?} The Lagrange multiplier $\lambda$ can be used as a control hyperparameter: choosing lower $\lambda$ would yield smaller \footnote{For smaller $E$, or for the same value of $E$, do we obtain a larger $n$?} $E$ for larger $n$.
+
+Another hyperparameter that depends on the use case is $\bar{m}$, the dimension of the vectors $u_i$. Smaller $\bar{m}$ is desired for compute, storage and data efficiencies, but too small $\bar{m}$ may not give coarsenable aggregates (i.e., small $\text{CR}_{\text{local}}$ for small $\text{REE}_{\text{local}}$; see Sec.~\ref{sec:5.2}).
+
+We this get a combination of two minimization problems, each having its own parameters: minimizing the overall loss functional $L(w)$ and minimizing the Lagrangian $L_a(T)$. We can iteratively solve both of them using the same forward feeding of samples, but with separate backprojections of gradients. We expect $T$ to converge faster and be better initialized by continuation (see App.~\ref{sec:continuation}), since it is less dependent on the specific task, and its backpropagation is only within one layer. Then, as soon as $T$ starts to converge, the revealed hidden aggregates with start helping to produce the right coarse variables for accelerating the convergence of $W$.
+
+\subsection{G.5 Multiple Associations}
+Different initializations may yield different association matrices. One should accept all those that yield low values of $L_a$. Each of them would contribute to accelerating the minimization of the loss $L$. Each of them may also lead upon upscaling to the emergence of different high-level concepts. They may be trained and applied simultaneously, in parallel to each other.
+
+A relatively fast multilevel hunt for multiple good (having small $L_a$) association matrices can proceed as follows. Begin by producing many association matrices with small width $\bar{m}$, each starting from a random $T$ followed by relaxation (possibly multilevel-accelerated) with relatively large $\lambda$ (producing partitions into few large miniclusters). Throw out all cases except those that have ended up with a small $L_a$.
+
+For the next level, {\it double} the matrix width $\bar{m}$. Instead of starting from random, each $T$ calculation will start by concatenating the rows of a random pair of association matrices of the previous level. Relax (possibly with multilevel acceleration) now with a reduced value of $\lambda$ (creating finer miniclustering). Throwing out again all the matrices that do not converge to a clustering with small $L_a$, proceed to the next level, again doubling the width $\bar{m}$; and so on. Stop at the first level that yields good coarsenable aggregates (small CR for small REE).
+
+(This is just a preliminary outline of multiple association algorithms. Furthermore, an empirical study is required.)
+
+\section{H. Continuation: Network Initialization and Growth}
+\label{sec:h}
+The present paper is mainly concerned with {\it accelerating the convergence} of iterative solvers using multilevel methods. The minimization problems under consideration (NN optimization in particular) are highly nonlinear and often have many local minima. The iterations' convergence speed and the solution they approach heavily depend on where (or how) they are {\it initialized}.
+
+A popular initialization approach, and the simplest to implement, is to start {\it random}. Usually such a start is far from a solution and requires many iterations to converge. Moreover, a random start for a highly nonlinear problem, even when by chance successful, would often lead to wrong or unhealthy solution, e.g., the obtained network would not be generalizable enough and would show high sensitivity to slight data perturbations.
+
+Generally, at high nonlinearity, a desired solution can be reliably obtained only if we start from a close-enough first approximation. In many areas of scientific computation, a common way to obtain a good first approximation (and trace sequences of solutions) is by the method of {\it continuation} (also called ``embedding`` or ``Davidenko method''; see for example \cite{keller77}). Namely, a sequence of auxiliary problems is formulated, starting from an easily solvable (e.g., linear) problem and gradually increasing its complexity all the way to the desired problem, such that the (approximate) solution of each problem in the sequence is a good initial guess for the next problem\footnote{reworded this sentence since it was a bit cumbersome; see if you like it.}. The sequence of auxiliary problems in fact {\it defines} which solution we are interested in, {\it even when it is not the lowest minimum} of the formal objective functional. A {\it multilevel} solver integrated with a continuation process may in fact be essential for a good {\it definition} of the desired solution (see example in \cite{SafRon}).
+
+The continuation process need not be expensive, since for dragging the system to the desired attraction basic it may be sufficient so only solve each auxiliary problem very crude, leaving the bulk of computation to the high-accuracy final stage.
+
+The continuation approach is in fact already largely implemented in Neural Network computations, e.g., under the name ``knowledge transfer'' or ``downstream tasks``, initialized by a pre-trained foundation model. But continuation can of course be applied to the pre-training itself.
+
+Choosing for example the objective of pre-training to be the identification when two given images are two different views of the same object or scene, one can start with the easy case that the two images are adjacent video frames, and gradually develop the network to deal with increasingly longer time intervals between the frames \footnote{Simplified sentence, see what you think.}. One can start with only few different objects in the database, perhaps even just one object (like a baby starting by recognizing just his/her mother's face), and gradually increase the number of objects. Similarly, one can gradually increase the number of moving parts of objects, or the noise level, occlusion, distortions, etc. and then introduce object classes and other distinctions of interest.
+
+As the sequence of problems unfolds, the NN architecture can, and should, adapt itself, typically adding more channels, more layers, denser resolutions, wider kernels (see Sec.~\ref{sec:13}), or wider attention context windows, more speciality sub-networks (see Sec.~\ref{sec:15.7}), or stronger localization procedures (see Sec.~\ref{sec:5.4}) -- where and when needed.
+
+A multilevel structure can be particularly useful here, as many continuation steps can be confined to coarse levels, with rare visits to finer ones to update the fine-to-coarse defect correction (see Sec.~\ref{sec:?}). Parameter {\it relations} (like those involved in coarsening) can be more suitable for knowledge transfer than the parameters themselves.
+
+Furthermore, one organic mode of architecture adaptation during continuation can emerge from the multilevel solver: the latter typically introduces {\it fixed} coarsening layers (like $Q$ in Fig.~\ref{fig:2}); then, with more incoming data later in the continuation sequence, these layers can be {\it ``unfrozen''} to become regular {\it learned} layers.
+
+\newpage
+\section{Appendix X: Dependence of Gradient Combination Statistics on Input Activation Statistics}
+\label{sec:x}
+
+{\bf Notation.} In a given layer, at each output point $p$ and for each sample $m$, denote
+\begin{itemize}
+    \item $a^m_i(p)$ = the $i${\it th} post-ReLU {\it input} activation.
+    \item $\gamma^m_j(p)$ = the loss derivative with respect to the $j${\it th} pre-ReLU
+    {\it output} activation.
+    \item $g^m_{ij} = \sum_p a^m_i(p) \gamma^m_j(p)$ = gradient of the weight $w_{ij}$.
+    \item $\overline{[\cdot]^m}$ = averaging the quantity $[\cdot]^m$ over all samples $m$.
+\end{itemize}
+
+{\bf Combinations.} For any normalized vector $\alpha = (\alpha_1, \alpha_2, ...)$, $\sum_i \alpha_i^2 = 1$, we define a normalized combination of the input activations $A^m_{\alpha} = \sum_i \alpha_i a^m_i(p)$ and a corresponding gradient combination
+$$ G^m_{\alpha j} = \sum_i \alpha_i \alpha_i g^m_{ij} = \sum_i \alpha_i \sum_p a^m_i(p) \gamma^m_j(p)\,.$$
+
+{\bf Assumption 1:} during training gradient averages should tend to zero, so we assume $|\overline{\gamma^m_j(p)}| \ll \overline{|\gamma^m_j(p)|}$.
+
+{\bf Averages.} $\overline{G^m_{\alpha j}} = \sum_p \overline{A^m_{\alpha}(p) \gamma^m_j(p)}\,.$
+Since $\gamma^m_j(p)$, and even its sign, may vary arbitrarily, $\overline{G^m_{\alpha j}}$ cannot be estimated from input activation statistics. In contrast, the relative sizes of $\overline{(G^m_{\alpha j})^2}$ and variances of $G^m_{\alpha j}$ can generally be estimated from the input activation statistics, as follows.
+
+{\bf Variance.}
+\begin{equation}
+    \begin{split}
+    \overline{\left(G^m_{\alpha j} - \overline{G^m_{\alpha j}}\right)^2} \approx \overline{\left(G^m_{\alpha j}\right)^2} \\
+     = & \sum_{p, q} \overline{A^m_{\alpha}(p) \gamma^m_j(p) A^m_{\alpha}(q) \gamma^m_j(q)} \\
+     \leq & \frac14 \sum_{p, q} \overline{\left(A^m_{\alpha}(p)^2 + A^m_{\alpha}(q)^2\right)(\left(\gamma^m_j(p)^2 + \gamma^m_j(q)^2\right)}\footnote{Follows from the arithmetic-geometric mean inequality and Lagrange's identity: $abcd \leq ((ac + bd)/2)^2 \leq \frac14 ((ac + bd)^2 + (a d - b c)^2) = \frac14 (a^2 + b^2)(c^2 + d^2).$}\\
+     = & \sum_p \overline{A^m_{\alpha}(p)^2 \cdot \frac12 \sum_q (\left(\gamma^m_j(p)^2 + \gamma^m_j(q)^2\right)}\footnote{I need further explanation on why this inequality and the next one hold.}\\
+     \approx & N_{\text{out}} \sum_p \overline{A^m_{\alpha}(p)^2} \sum_p \overline{\gamma^m_j(p)^2}\,,
+    \end{split}
+    \label{g_var}
+\end{equation}
+where $\approx$ denotes likely comparable sizes. Indeed, dividing both sides by $N_{\text{out}} \sum_p \overline{\gamma^m_j(p)^2}$, they both express some weighted averages of $\sum_p A^m_{\alpha}(p)^2$, only with different non-negative weights.
+
+{\bf Conclusion I.} A gradient combination can generally have large variance (compared with the variance of some other normalized combinations in the same output sheaf) only if the corresponding combination of input activations has a large size (compared to the size of some other activation combinations).
+
+{\bf Conclusion II.} A small error in an interpolation between input activations implies a small error in the corresponding parameter interpolation in every sheaf. To see this, apply the above inequality to the combination expressing the interpolation {\it error}, which is the difference between the interpolant, which is a linear combination of coarse variables, and the target fine-level variable, where each coarse variable is itself a linear combination (the operator $Q$) of fine-level variables.
+
+{\bf Fully-connected layer.} In the special case of a fully connected layer, where there is no out-point ($p$) dependence , the relations are simpler (approximate equality, not {\it in}equality) and extend to {\it co}variances (not just variances) of combinations, as follows.
+
+{\bf Covariance.}
+\begin{equation}
+    \begin{split}
+    \overline{\left(G^m_{\alpha j} - \overline{G^m_{\alpha j}}\right) \left(G^m_{\beta j} - \overline{G^m_{\beta j}}\right)} & \\
+     & \approx \overline{G^m_{\alpha j} G^m_{\beta j}} \\
+     & = \overline{A^m_{\alpha} A^m_{\beta} \left(\gamma^m_j\right)^2} \\
+     & \approx \overline{A^m_{\alpha} A^m_{\beta}} \overline{\left(\gamma^m_j\right)^2}\,,
+    \end{split}
+    \label{g_cov}
+\end{equation}
+because, dividing both sides by $\overline{\left(\gamma^m_j\right)^2}$, both express some weighted average of $A^m_{\alpha} A^m_{\beta}$, only with different non-negative weights.
 
 %\section{Continuation}
 %\label{sec:continuation}
