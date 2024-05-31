@@ -1,85 +1,97 @@
-\documentclass[11pt]{article}
-%=================================================================
-% Page setup, library includes, macro definitions.
-%=================================================================
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Multiscale optimization paper.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\usepackage{algorithm, algpseudocode, amsmath, amssymb, amsfonts, authblk, graphicx, subfig, url}
+\documentclass{article} % For LaTeX2e
+%\documentstyle[nips14submit_09,times,art10]{article} % For LaTeX 2.09
 
-% Define custom commands (macros).
+%--------------------------------------------------------
+% Packages.\dfrac{•}{•}
+%--------------------------------------------------------
+%\usepackage{nips15submit_e,times}
+\usepackage[toc,page]{appendix}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage{subcaption} 
+\usepackage{mathtools}
+%\usepackage{xcolor}
+%\usepackage{soul}
+\usepackage{graphicx}
+\usepackage[disable]{todonotes}
+\usepackage{changebar}
+%\graphicspath{ {figs/} }
+\newtheorem{theorem}{Theorem}
+\include{aliases}
 
-\DeclareMathOperator*{\argmin}{arg\,min}
-\DeclareMathOperator*{\argmax}{arg\,max}
-\newcommand{\ger}{{\mbox{GER}}}
-
-\newcommand{\boldb}{\boldsymbol{b}}
-\newcommand{\bd}{\boldsymbol{d}}
-\newcommand{\boldf}{\boldsymbol{f}}
-\newcommand{\bh}{\boldsymbol{h}}
-\newcommand{\bx}{\boldsymbol{x}}
-\newcommand{\by}{\boldsymbol{y}}
-
-\newcommand{\bA}{\boldsymbol{A}}
-\newcommand{\bB}{\boldsymbol{B}}
-\newcommand{\bC}{\boldsymbol{C}}
-\newcommand{\bD}{\boldsymbol{D}}
-\newcommand{\bH}{\boldsymbol{H}}
-\newcommand{\bI}{\boldsymbol{I}}
-\newcommand{\bG}{\boldsymbol{G}}
-\newcommand{\bL}{\boldsymbol{L}}
-\newcommand{\bM}{\boldsymbol{M}}
-\newcommand{\bP}{\boldsymbol{P}}
-\newcommand{\bQ}{\boldsymbol{Q}}
-\newcommand{\bR}{\boldsymbol{R}}
-\newcommand{\bV}{\boldsymbol{V}}
-\newcommand{\bW}{\boldsymbol{W}}
-\newcommand{\bX}{\boldsymbol{X}}
-\newcommand{\bZ}{\boldsymbol{Z}}
-\newcommand{\bybar}{\boldsymbol{\overline{Y}}}
-
-\newcommand{\boldeta}{\boldsymbol{\eta}}
-
-% Sets.
-\newcommand{\cD}{{\cal D}}
-\newcommand{\cT}{{\cal T}}
-\newcommand{\cI}{{\cal I}}
-\newcommand{\spd}{\mathcal{L}^n_+}
-
-% Misc.
-\newcommand{\of}{\overline{f}}
-\newcommand{\cond}{\kappa}
-\newcommand{\condparam}{\alpha}
-\newcommand{\bgamma}{\boldsymbol{\gamma}}
-\newcommand{\bdelta}{\boldsymbol{\delta}}
-\newcommand{\btheta}{\boldsymbol{\theta}}
-\newcommand{\kt}{\widetilde{\kappa}}
-\newcommand{\lmax}{\lambda_{\text{max}}}
-\newcommand{\lmin}{\lambda_{\text{min}}}
-\newcommand{\tg}{\widetilde{\bG}}
-\newcommand{\Real}{\mathbb{R}}
-\newcommand{\xa}{\bx_*(\alpha)}
-
-%=================================================================
-% Cover page.
-%=================================================================
-\title{Multilevel Optimization of Neural Networks: \\ Work Log}
-
-\author[1]{Achi Brandt}
-\author[2]{Oren E. Livne}
-\affil[1]{Faculty of Mathematics and Computer Science, The Weizmann Institute of Science, 234 Herzl Street, Rehovot 7610001 Israel. Email: achibr@gmail.com}
-\affil[2]{Educational Testing Service, 660 Rosedale Road, Attn: MS-12, Princeton, NJ 08540. Email: olivne@ets.org}
+% Number equations A.1, A.2, etc.
+\counterwithin*{equation}{section}
+\renewcommand{\theequation}{\thesection.\arabic{equation}}
+%--------------------------------------------------------
+% Title.
+%--------------------------------------------------------
+\title{Multi-level Stochastic Optimization and Neural Networks}
+\author{
+Achi Brandt\\
+Oren E. Livne \\
+}
 \date{\today}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Paper starts here.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{document}
+
 \maketitle
-
-\begin{abstract}
-Log of our work on fast multilevel neural networks training algorithms.
-\end{abstract}
-
 \tableofcontents
-\newpage
+\todototoc
+\listoftodos
+
+%\begin{abstract}
+%\end{abstract}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newpage
+\part{Introduction}
+
+\section{Motivation}
+The current approach to design, train and deploy Neural Networks (NNs) involves several challenges:
+
+\begin{itemize}
+  \item \textbf{Collecting} and annotating enough training data is hard and costly.
+  \item \textbf{Training} algorithms are slow, not guaranteed to converge and take hours-to-days to run and fine-tune. In particular, very deep NN are notoriously slow to train.
+  \item The networks contain many millions of parameters and operations, resulting in a high \textbf{inference cost} that limits their deployment on limited-resource devices.
+  \item The \textbf{prediction accuracy} is very limited. Training algorithms fail to converge to some important solution components, and are inefficient in taking spatial positional relations and extended-scale features in images into account.
+ \end{itemize}
+ 
+All these difficulties are related, in part, directly or indirectly, to one basic problem: the flatness of the optimization algorithms, the fact that all operations are done at the lowest level of separately updating individual parameters. Instead, an efficient treatment of any system with such a large number of parameters must include hierarchical operations based on information summarized from a hierarchy of increasingly larger aggregates of parameters. This is a principle whose existing realizations for various problems in different areas of computational science and engineering are many and diverse, documented in thousands of papers and dozens of international conference proceedings. 
+
+To explain the nature of the required hierarchical (or multi-level) structures we first describe below the essential principles of the multilevel approach to solving general optimization and stochastic optimization problems. We will then discuss the application of these principles in the particular case of NNs.
+
+The potential benefits extend beyond fast network training. As in other areas, where the multilevel approach that was initially developed just for solver efficiency subsequently proved very beneficial in several other ways as well, we list in Sec.~\ref{sec:benefits} many potential advantages to be gained by the multilevel processing of neural networks. 
+
+The technology developed for accelerating NN training constitutes a fundamental generalization of existing multilevel solvers such as Algebraic Multigrid (AMG). \textbf{Beyond applications to neural networks, it can also yield advanced solvers for many other important scientific and industrial optimization problems.}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newpage
+\part{Multi-level Stochastic Optimization}
+\label{sec:stochastic_optimization}
+
+\section{Introduction}
+Generally, in solving an optimization problem, at each stage of the processing, the convergence rate of {\it deterministic} Gradient Decent (GD) methods is proportional to the Gradient-to-Error Ratio (GER). As observed in practically all large-scale optimization problems (including NN training), in the first few GD iterations the GER may be large, yielding fast initial convergence. But then the GER progressively diminishes, resulting in a dramatic convergence slowdown. Furthermore, in the {\it stochastic case}, the required number of gradient samples one should average over to obtain just {\it one} GD iteration equivalent increases quadratically with the inverse of the equivalent of the gradient. (Using fixed-size minibatches, this is achieved by diminishing the learning rates at least as fast as $O(\ger^2)$).
+
+All low-GER error vectors approximately belong to a much lower dimensional subspace, which satisfies many linear relations that in the stochastic case translate into correlations. The SGD slowness is due to processing gradient terms independently of each other: if several error terms are strongly correlated, changing one of them without taking into account the changes in the others is very inefficient. To overcome this inefficiency, as soon as the convergence starts slowing down, the solver should start using \textbf{collective updates}, each simultaneously updating a cluster of highly correlated parameters taking their correlations into account. Including such updates in the iterations indeed yields fast convergence at first, but then (as the GER becomes even smaller) the collective updates also become increasingly correlated (approximately residing in a still-lower dimensional subspace), so the algorithm should start including collective updates of collective updates. And so on.
+	
+The multi-level solver iteratively cycles between all the levels of a correlation-based hierarchy of collective updates. This hierarchy is usually constructed as a sequence of increasingly \textbf{“coarser”} (lower dimensional) spaces. An \textbf{interpolation operator} from each coarse space to the next finer space spells out how each coarse-level update will translate into a collective fine-level update.
+
+Calculating small gradients at the corresponding lower-dimensional subspace involves much less sampling noise than calculating them in the full space, hence requires much less averaging per GD iteration. This adds another big efficiency factor to the multi-level training, and more importantly, drastically reduces the amount of required training samples.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Definitions}
 \label{sec:definitions}
@@ -87,7 +99,7 @@ The general optimization problem is to calculate
 $$
 	w^{min} = \argmin f(w)\,,\qquad w = (w_1, w_2,\dots, w_n)\,.
 $$
-Given an iterative solver we will denote by $w^{\infty}$ the solution it converges to, disregarding in the current discussion the question whether $w^{\infty} = w^{min}$. (In fact, with a suitable continuation method, in practice $w^{\infty}$ may anyway be the solution we are actually interested in, not $w^{min}$).
+Given an iterative solver we will denote by $w^{\infty}$ the solution it converges to, disregarding in the current discussion the question whether $w^{\infty} = w^{min}$. (In fact, as argued in Sec.~\ref{sec:additional}, with a suitable continuation method, in practice $w^{\infty}$ may anyway be the solution we are actually interested in, not $w^{min}$).
 
 At any iteration, denote the current approximate solution by $w$, the current error by
 \begin{equation}
@@ -103,14 +115,7 @@ We further denote the current \textbf{Gradient-to-Error Ratio} (GER) by
 	\ger(e) = \frac{\left\| g(e) \right\|}{H \left\| e \right\|}
 	\label{ger}
 \end{equation}
-where $\|\cdot\|$ is the $l_2$ norm and $H$ is a normalization constant chosen such that $\max_e \ger(e) = 1$.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Test Cases}
-\label{sec:test_cases}
-We use MNIST with a small network and focus on understanding SGD slowness and coarsening of a single layer, {\it fc1} with a small number of activations ($144$ inputs).
-
-{\bf TODO: add network architecture here.}
+where $\|\cdot\|$ is the $l_2$ norm and $H$ is a normalization constant such that $\max_e \ger(e) = 1$.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Gradient Descent (GD) and Stochastic GD (SGD)}
@@ -118,23 +123,20 @@ We use MNIST with a small network and focus on understanding SGD slowness and co
 
 Each GD iteration is the update
 \begin{equation}
-	w \longleftarrow w - \rho g\left(w\right)\,,
+	w \longleftarrow w - \rho g\left(e(w)\right)\,,
 	\label{gd}
 \end{equation}
-where the ``learning rate'' $\rho$ is a positive hyper-parameter that generally needs to be smaller than $3 / H$ to avoid fast divergence. In practice only an approximation to $g(e)$ is calculated at each GD iteration. The gradient calculation is an inexpensive $O(n)$, highly-parallelizable calculation in many large-scale scientific and engineering problems, where the equations are essentially local, but not so in other problems, including the NN training problem; see below. Since (\ref{gd}) implies that in each iteration
+where the ``learning rate'' $\rho$ is a positive hyper-parameter that generally needs to be smaller than $3 / H$ to avoid fast divergence. In practice only an approximation to $g(e)$ is calculated at each GD iteration. in many large-scale scientific and engineering problems, where the equations are essentially local, the gradient calculation is an inexpensive $O(n)$, highly-parallelizable calculation (but not in other problems, including the NN training problem; see Sec.~\ref{sec:gd_local} below). Since (\ref{gd}) implies that in each iteration
 $$
 	e_{NEW} = e_{OLD} - \rho g\left(e_{OLD}\right)\,,
 $$
-
-Two Slowness factors:
-\begin{enumerate}
-    \item {\it Ill conditioning.} the convergence factor per iteration is
+the convergence factor per iteration is
 $$
-	\frac{\left\|e_{NEW}\right\|}{\left\|e_{OLD}\right\|} = 1 - O\left(\ger\left(\left\|e_{OLD}\right\|\right)\right)\,.
+	\frac{\left\|e_{NEW}\right\|}{\left\|e_{OLD}\right\|} = 1 - O\left(\ger\left(e_{OLD}\right)\right)\,.
 $$
-As observed in all large-scale problems (including NN training), in the first few iterations the GER is $O(1)$, yielding fast initial convergence. But then the GER progressively diminishes, resulting in a dramatic convergence slowdown, requiring a huge number of GD iterations with very small gradients to converge.
+As observed in all large-scale problems (including NN training), in the first few iterations the GER is $O(1)$, yielding fast initial convergence. But then the GER progressively diminishes, resulting in a dramatic convergence slowdown, requiring a huge number of GD iterations to converge.
 
-\item {\it Stochastic noise.} Furthermore, in many kinds of problems the actual slowness is much worse, because as $\|e\|$ decreases and $\|g(e)\|$ decreases even much more, the work to approximately calculate $g(w)$ at each GD iteration sharply increases, typically proportionally to $\|g(e)\|^{-2}$.
+Furthermore, in many kinds of problems the actual slowness is much worse, because as $\|e\|$ decreases and $\|g(e)\|$ decreases even much more, the work to approximately calculate $g(w)$ at each GD iteration sharply increases, typically proportionally to $\|g(e)\|^{-2}$.
 
 This in particular is the case in NN training, where $g(w)$ is the average of its values over many samples:
 $$
@@ -146,255 +148,891 @@ During the iterations, as the error tends to $0$, the average of each component,
 $$
 	\sigma_i^2(e) =  \frac{1}{M} \sum_{m=1}^M \left(g_i^m(w)\right)^2 - g_i(e)^2
 $$
-does not generally decrease much. Hence averaging over $$M_i = O(\sigma_i^2(e) / |g_i(e)|^2)$$ samples is needed in order to get a reasonable approximation to $g_i(e)$, and the equivalent of one GD iteration requires $O(n\|g(e)\|^{-2})$ operations.
+does not generally decrease much. Hence averaging over $M_i = O(\sigma_i^2(e) / |g_i(e)|^2)$ samples is needed in order to get a reasonable approximation to $g_i(e)$, and the equivalent of one GD iteration requires $O(n\|g(e)\|^{-2})$ operations.
+
+In practice, the popular Stochastic Gradient Descent (SGD) algorithm averages gradients in each of its iterations over a minibatch of fixed size $M_b$, where $M_b \ll M_i$ for most of the components $i$. This yields a stochastic approximation to each $g_i(e)$, such that one needs to average over $O(M_i/M_b)$ such minibatch values in order to average out enough noise in $g_i(e)$. This is effectively obtained by reducing the learning rate $\rho$ by at least a factor of $O(M_b/M_i)$. So effectively, still $O(\|g\|^{-2})$ samples are averaged over to get the equivalent of one GD iterations. (See a more precise analysis in terms of eigen components in App.~\ref{sec:sgd_eigenmode}.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Multilevel Gradient Descent}
+\label{sec:mlgd}
+While GD is very inefficient at asymptotic convergence, it is initially very efficient not only at reducing the error \textbf{size}, but also at vastly reducing its effective \textbf{dimension}. This is most easily seen by looking at the expansion of the error in term of eigen-components of the Hessian. Indeed, in many problems most error components have large GER, comparable with the GER of random errors. Low-GER error components are more special, approximately satisfying the homogeneous Hessian equations, hence their number is much smaller. They comprise a much lower dimensional subspace: the lower their GER, the lower the dimension. (In some problems this is true only upon suitable modification of the GD steps and the GER measure. See Sec.~\ref{sec:gd_local}.)  The low-GER error obtained by few GD iterations belongs to such a subspace, except for also containing remnants (small amplitudes) of high-GER eigen components.  
+
+Thus, for any $\gamma \ll 1$ there exists a subspace $W_{\gamma} \subseteq W$ of dimension $n_{\gamma} \ll n$, such that
+
+\begin{equation}
+	{\mbox{If }} \ger(e) \leq \gamma {\mbox{ then }} e \approx e_{[\gamma]} \in W_{\gamma}\,,
+	\label{ger_gamma}
+\end{equation}
+when the smaller the cutoff $\gamma$, the smaller $n_{\gamma}$ and/or the smaller $\|e -e_{[\gamma]}\|$ can be.
+
+{\mbox{}}\\ \noindent
+\underline{Multilevel Cycle:} For a decreasing sequence of cutoffs
+$$
+1 = \gamma_0 \gg \gamma_1 \gg \gamma_2 \gg \cdots\,,
+$$
+\begin{itemize}
+	\item Perform several GD iterations in the full space $W_{\gamma_0} \equiv W$.
+	\item Perform several GD iterations confined to $W_{\gamma_1}$.
+	\item Perform several GD iterations confined to $W_{\gamma_2}$; etc.
+\end{itemize}
+A more elaborate cycle would visit higher levels (smaller $\gamma$) more times, e.g., visiting each $W_{\gamma_k}$ twice during each visit to $W_{\gamma_{k-1}}$.
+
+{\mbox{}}\\
+\underline{Multilevel Solver} is an optimizer composed of a (usually short) sequence of multilevel cycles. Each multilevel cycle usually reduces all error components by a large factor (typically between $2$ and $20$), because each  GD step in $W_{\gamma}$ can use a learning rate that effectively reduces all error components with $\ger = O(\gamma)$ -- without amplifying higher-GER components since they are absent in $W_{\gamma}$.
+
+After a full cycle, the remaining error is usually again dominated by high-GER components (their sizes being much smaller than in the original error) which can then be efficiently reduced by the next cycle. (The remnants of high-GER components could not have as efficiently been reduced by making additional GD step in the first cycle, because in those additional steps the gradients were no longer dominated by the high-GER components).
+
+It is important to note that, since subsequent cycles can further clean any left error, the determination of the subspaces $W_{\gamma_k}$ need not be exact. The determination of these subspaces and the definition of GD confined to each subspace is explained next.
+
+\subsection{Building the Coarse Subspaces}
+\label{sec:w_gamma}
+
+(\ref{ger_gamma}) implies that there exists a \textbf{projection} matrix $Q_{n_{\gamma} \times n}$, and an \textbf{interpolation} matrix $P_{n \times n_{\gamma}}$, such that
+
+\begin{equation}
+	{\mbox{if $\ger(e) \leq \gamma$ then $e \approx P Q e$.}}
+	\label{pqe}
+\end{equation}
+Our task is to build such matrices, and such that it is inexpensive to multiply by them.
+
+Suppose we already have $K$ error samples $e^{(1)}, e^{(2)}, \dots, e^{(K)}$ that satisfy
+\begin{equation}
+	\ger\left(e^{(k)} \right) \leq \gamma\,, \qquad k = 1, 2, \dots, K\,.
+	\label{ger_ek}
+\end{equation}
+(See App.~\ref{sec:low_ger} for a description of how such examples are created and improved throughout the solution process.)
+
+We can then build a matrix $E^K_{n \times K}$ whose $k$th column is $e^{(k)}$. If $K$ is sufficiently large ($K \gg n_{\gamma}$), we can replace (\ref{pqe}) with the requirement $E^K \approx P Q E^K$. For a given value of $n_{\gamma}$, the matrices $P_{n \times n_{\gamma}}$ and $Q_{n_{\gamma} \times n}$ that give the best approximation are obtained as follows.
+
+\begin{theorem}[Eckart-Young-Mirsky]
+Let the Singular Value Decomposition (SVD) of $E^K$ be $E^K = V \Sigma U^T$, where $V_{n \times n}$ and $U_{K \times K}$ are unitary matrices and 
+$$
+	\Sigma = \diag(e_1, e_2, \dots, e_n)\,,\qquad e_1 \geq e_2 \geq \cdots \geq e_n \geq 0\,.
+$$
+Then for a given $n_{\gamma}$, the Frobenius norm $\|E^K - P_{n \times n_{\gamma}} Q_{n_{\gamma} \times n} E^K\|_F$ is minimized by $P = Q^T = (V^{(1)}, V^{(2)}, \cdots, V^{(n_{\gamma})})$\,, where $V^{(k)}$ is the $k$th column of $V$.
+\end{theorem}
+
+See \cite{eym} for a proof. Unfortunately, these SVD-based optimal matrices are not suitable for our purpose. First, because they are very expensive to derive, requiring $O(n^3 + K^2 n)$ operations. More importantly, they are dense, making matrix multiplication expensive. Fortunately, $P$ and $Q$ need not be optimal in any sense; in fact, as noted above, quite crude approximations are sufficient and generally inexpensive to derive, as explained next.
+
+\subsection{Coarsening in Neighborhoods}
+\label{sec:neighborhoods}
+\text{Coarsening} is the approximate representation of all $n$ parameters ($w_1, w_2, \dots, w_n$ -- the \textbf{"fine"} level) as interpolants from a smaller set of $n_{\gamma}$ parameters (the \textbf{"coarse"} level).
+
+The $n$ parameters $(w_1, w_2, \dots, w_n)$ are generally not all close to each other. To a good approximation, coarsening can be done in separate subsets of \textbf{neighboring} (correlated) parameters, one subset (\textbf{"neighborhood"}) at a time. These neighborhoods are generally quite small and may overlap. In many problems they arise naturally (for instance, in the Smoothed Aggregation method, they are defined by the system graph, i.e., neighbors are variables that appear in the same equation); otherwise they can initially be constructed in the following way.
+
+Suppose again we acquired a set of $K$ error examples $e^{(1)}, e^{(2)}, \dots, e^{(K)}$ that satisfy (\ref{ger_ek}). For each parameter $w_i$ this set defines a vector
+$$
+	E_i = \left( e^{(1)}_i, e^{(2)}_i, \cdots, e^{(K)}_i \right)\,.
+$$
+Parameters $w_i$ and $w_j$ are considered \textbf{neighbors} to the extent that they are \textbf{correlated}, i.e., that the distance
+\begin{equation}
+	d_{ij} := 1 - \corr(E_i, E_j)
+	\label{dij}
+\end{equation}
+is small, where correlation is defined by
+\begin{equation}
+    \corr(a, b) := \left[\frac{\cov(a, b)^2}{\var(a) \var(b)}\right]^{\frac12}\,.
+\end{equation}
+Consequently, we can partition the set of $n$ parameters into small neighborhoods, i.e., many clusters, each containing a few highly correlated parameters. This is done by bottom-up \textbf{sparse linkage clustering}, defined in App.~\ref{sparse_linkage_clustering}.
+
+Let $P_{\nu}$ and $Q_{\nu} = P_{\nu}^T$ be the SVD-based interpolation and projection matrices of the $\nu$th neighborhood, respectively. Reordering the $n$ parameters into a sequence of neighborhoods, we can then construct the complete $P$ and $Q$ as block-diagonal matrices with blocks $P_1, P_2, \dots$ and $Q_1, Q_2, \dots$, respectively. The column dimension of each block (i.e., number of coarse variables in a cluster) may be varied depending on the end goal (see also Sec.~\ref{sec:improved_coarsening}).
+
+This constitutes one coarsening stage of the multilevel structure. Further coarsening stages are constructed in a similar manner (defining distances between clusters via error examples, and clustering them into yet-larger clusters; etc. cf.~Sec.~\ref{sec:further_coarsening}). This graded construction (as opposed to trying to minimize the number of clusters at this stage) offers several advantages: (a) $K$ may be \textbf{small}, since we are only interested in the \textbf{strong correlations} to create the neighborhoods, and those are already detectable on a relatively small sample. (b) The resulting multilevel $P$ and $Q$ are \textbf{sparse}, facilitating a \textbf{fast matrix-vector multiplication}, as opposed to a dense matrix obtained by the SVDs of large clusters.
+
+\subsection{Improved Coarsening}
+\label{sec:improved_coarsening}
+This block-diagonal coarsening can be improved in various ways, depending on the problem at hand. The interpolation can be replaced by a higher-accuracy interpolation $P_{HA}$ by allowing each of the fine variables to be interpolated not just from the coarse variables of its own neighborhood, but also from the the coarse variables of \textbf{neighboring neighborhoods}. The interpolation is built by Ridge-regularized least-squares fitting to $e^{(1)}, e^{(2)}, \dots, e^{(K)}$. (The regularization term is proportional to a weighted sum of squares of interpolation coefficients, to avoid over-fitting).
+
+Since accuracy can be tuned by adjusting the interpolation $P$, the projection $Q$ may be simplified. For instance, in many cases $Q_{\nu}$ may be replaced by a one representative member of the $\nu$-th neighborhood. The objective is often to sparsify $Q$ as much as possible. For example, in the NN applications discussed in Sec.~\ref{sec:nn}, $Q$'s sparsity is much more crucial than $P$'s sparsity.
+
+\textbf{Notation.} When describing any coarsening level below, we will denote by $w$ and $w^c$ the vectors of fine-level unknowns and coarse-level unknowns, respectively, with $w^c = Qw$; the coarse-to-fine correction is denoted by $\delta w = P w^c$.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Coarse-level Processing: Overview}
+\label{sec:coarse_overview}
+Based on the fine-to-coarse projection $Q$ and the coarse-to-fine interpolation $P$, one can design the coarse-level relaxation (e.g., GD) steps. The specific implementation depends on the kind of optimization problem setup.
+
+The first multilevel algorithms were the multigrid solvers of discretized Partial Differential Equations (PDEs). In these solvers, the coarse-level equations are simply a coarse-grid discretization of the same PDE, except that their forcing terms (right-hand-sides) are composed of local averages of the fine-level \textbf{residuals} (gradients), so that the coarse-level solution is an approximation to the fine-level \textbf{error}. The coarse-level (approximate) solution is then interpolated to the fine level and added as a \textbf{correction} to the current fine-level approximate solution. The interpolation used here was a simple multi-polynomial (e.g., linear, geometric interpolation, later modified by various ad-hoc rules to more accurately fit the given discrete equations \cite{mg_discontinous}). A suitable modification for \textbf{nonlinear} equations is the Full Approximation Scheme (FAS \cite{brandt77}, \cite[Sec.~8]{guide}; see example below).
+
+Most optimization problems in science and engineering, even when they are not well-structured discretizations of PDEs, can still be cast as a sparse system of linear or nonlinear \textbf{explicit} equations. The extension of the multigrid method to such schemes is called Algebraic Multigrid (AMG) \cite{amg_book}. The interpolation for such systems was first based on various ad-hoc rules similar to those mentioned above. A systematic interpolation derivation developed later is \textbf{Smoothed Aggregation} (SA \cite{sa}). It uses few GD steps over small overlapping neighborhoods, one neighborhood at a time, to find the approximate relations satisfied by a low-GER error in each neighborhood, when neighbors are defined by the system graph, i.e., neighbors are basically variables that appear in the same equation.
+
+Another systematic approach, \textbf{Bootstrap AMG} (BAMG, \cite[Sec.~17.2]{review2000}), uses \textbf{global} GD iterations to create ``test functions'', i.e., examples that satisfy (\ref{ger_ek}), followed by the neighborhood-based derivation described above. The neighborhood may in many cases still be based on the system graph. But generally, a graph neighbor may sometimes be a false neighbor (being more strongly connected to a completely different neighborhood), and some neighbors may be much more correlated than others - which will all be suitably treated by the correlation-based neighborhoods described above. The BAMG approach also includes an optional iterative multilevel procedure to inexpensively construct ever more accurate (lower-GER) test functions (cf. App.~\ref{sec:low_ger}), as needed for some (e.g., lower-rank) applications.
+
+More fundamentally, the BAMG approach is applicable when no explicit sparse system of equations, hence no system graph, is given. When all that's available at the fine level is just the gradients $g_i = \partial L/\partial w_i$, all we can have at the coarse level is the coarse gradient components
+$$
+	g^c_j = \frac{\partial L}{\partial w^c_j} =
+	\sum_i \frac{\partial L}{\partial w_i} \frac{\partial w_i}{\partial w_j^c} =
+	\sum_i g_i P_{ij}, \quad {\mbox{i.e. }} g^c = P^T y\,.
+$$
+Thus each coarse-level iteration \textbf{depends} on calculating gradients at the fine level. See Sec.~\ref{sec:direct_coarsening} for details of the steps in the stochastic case taken in this situation. For unlocking further benefits, it is important to create \textbf{autonomous} coarse-level iterations. This can be done, using the FAS approach, provided there is a way for \textbf{at least approximately} calculating $g^c$ independently of the fine level. See Sec.~\ref{sec:fas} for details in the NN case.
+
+\subsection{NN Training}
+The NN training problem is different in a number of fundamental ways from the optimization problems previously treated by multilevel approaches. In particular:
+\begin{enumerate}
+	\item The NN problem has \textbf{No explicit system of equations}; there is only a way to compute the residuals (the gradients of the objective function) of any given approximation. Thus there is no explicit graph of parameter proximity (neighborhoods).
+	\item The residuals are measured \textbf{stochastically}: they are averaged over a random sequence of samples.
+	\item The amount of averaging, hence  \textbf{cost} of measuring each residual, keeps sharply increasing upon approaching the solution.
+	\item There are two types of coarsening for neural networks: \textbf{intra-layer and cross-layer} coarsening.
+	\item The coarsening should be made for \textbf{two types of variables}: neuron activations and connection weights.
+	\item \textbf{Non-uniqueness}: there are many, probably equally good, solutions, very different from each other.
+	\item There may be local errors that have low GER.
 \end{enumerate}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\section{Observing SGD Slowness}
-{\bf Have we actually observed SGD slowness? Should I look at the gradient norm of each layer to measure this? - as we know, it will decrease but then increase during training, unless calming is performed.}
+\section{Multi-level Design and Efficiency Prediction}
+\label{sec:predictors}
+At its core, the multi-level cycle alternates between fine-level processing, aimed at reducing high-GER errors, and coarse-level processing, which damps low-GER errors. If both components are designed as such, the multi-level solver is guaranteed to reduce all errors efficiently. In this section we discuss some techniques for \textbf{quantitatively} predicting each component's performance, which helps guide the design of the overall multi-level solver.
 
-\section{Relaxation}
-\label{sec:relax}
-We would like to design a relaxation scheme that efficiently smooths the error. A sufficient condition is {\it locality}: each relaxation step has a small effect on gradients outside a small neighborhood. Such a relaxation should also require {\it less averaging} because local neighborhoods exhibit only a small number of independent examples, as opposed to many large-scale combinations of those local examples.
+To simplify the notation, we hereafter refer to the fine-level iteration (which in NN is normally GD; but we also explore alternative schemes) as \textbf{relaxation}, borrowing the jargon of multigrid PDE solvers \cite[Sec.~1]{guide}.
 
-We would like to find groups of highly correlated gradients. Each relaxation step can be SGD on a weak eigen-component of each group.
+\subsection{Fine-level Error Narrowing and Compatible Gradient Descent}
+\label{sec:gd_local}
+A first key question is whether it is possible to estimate how effectively GD, or an alternative relaxation scheme, \textbf{narrows the error}, i.e., reduces the error to a lower-dimensional space, even before a coarsening is chosen. 
 
-Groups can be defined in terms of activations, since activation cosine distances predict gradient correlations in the corresponding sheaves. So, we are looking for a clustering of the activations into small groups. Each group contains cosine-similar activations, whilst cross-group correlations are small. Grouping is equivalent to adding a layer of activation groups between the input and output activations of a layer.
+This usually happens if the GD changes are \textbf{local}, i.e. only gradients of the strong neighbors of a parameter are significantly changed by the GD step of the parameter. Since such steps reduce components nearly independently in many local neighborhoods, this indirectly ensures that many error components are reduced and the remaining error is low-dimensional. For instance, in discretized PDEs \textbf{pointwise relaxation} \cite[Sec.~1]{guide} is local because of the equations' locality. In contrast, in \textbf{integral equations}, updating a single parameter $w_i$ would introduce changes to the residuals at $w_j$ far from $w_i$. To make the relaxation local, so-called \textbf{distributive} relaxation is used instead \cite{lubrecht}, that is, simultaneously updating \textbf{several} neighboring parameters in a particular combination so that the effect on far parameters is negligible. Also, error narrowing is not equivalent to GER reduction in this case: in fact, in solving integral equations low-GER errors are local (high-frequencies), while high-GER errors are non-local (smooth). Generally, relaxation should narrow the error to reside in the lower-dimensional subspace of low \textbf{Response to Relaxation (RER)} errors. A simple sufficient condition is for the relaxation to quickly reduce random components (whether they are high-GER or not).
 
-{\bf How can we find optimal activation groups?} For the sake of study, the algorithm doesn't have to be very fast, since we're studying a layer with a small number of activations.
+If GD is not already local, locality can be achieved via the local neighborhoods and coarse variables representing each neighborhood described in Sec.~\ref{sec:neighborhoods}. Based on these neighborhoods, we can replace GD with \textbf{Compatible Gradient Descent (GD)}: a modified GD scheme that keeps the coarse variables unchanged, and is therefore local.
 
-\subsection{Eigen-relaxation}
-\label{sec:eigenrelax}
-First, we can perform a global SVD (one group). This eliminates all activation cosine similarities: eigen-activations are orthogonal; cf.~App.~\ref{sec:pc}. So it stands to reason that if one orthogonal tranformation $V$ of the activations eliminates similarities, another one can enhance the similarities between the individual activations.
-
-But, maybe we already have a natural grouping using eigen-components: each of them is its own group. A change to one should not change the other eigen-components at all.
-
-This is related to the {\it Fisher scoring algorithm} \cite{fisher_scoring} (incidentally, Fisher worked in psychometrics, where I am currently working). This is a quasi-Newton method:
+Recall that gradient descent means to look for a direction $\delta$ of maximum decrease in the function, given that the step is small: 
 \begin{equation}
-    w \longleftarrow w - E[H(w)]^{-1} g\left(w\right)\,,
+	\min_{\delta} \left\{ L(w + \delta) \approx  L(w) + \delta^T g \right\}\, {\mbox{s.t. }} \delta^T \delta = \varepsilon\,,
 \end{equation}
-In \cite{lla}, Fisher scoring is applied to training a single layer at a time (Eq.~(15)). The expected value of the negative Hessian $H(w)$ is usually approximated by the observed variance of the gradient $E[g(w)^2]$ \cite{fisher_tutorial}.
-\begin{equation}
-    w \longleftarrow w - E[g(w)^2]^{-1} g\left(w\right)\,,
-\end{equation}
-In our case we look at gradient variances indirectly via activations. In terms of eigen-components, it means that each eigen-component $k$ should be updated separately and with a different learning rate proportional to $1/\sigma_k^2$, that is,
-\begin{equation}
-    w \longleftarrow w - \frac{\rho}{\sigma_k^2} v_k g\left(w\right)\,,
-    \label{fisher}
-\end{equation}
-where $v_k$ is the $k$th principal component, applied to each output sheaf. If this idea makes sense, we can immediately see that this relaxation changes mostly the {\it weak} components, which is anyway what we want. So we could restrict the scheme to only changing components with sufficiently small $\sigma_k$, ignoring strong components altogether. 
+where $g = \nabla L(w)$. The corresponding Lagrangian is
+$$
+  f(\delta; \xi) := L(w) + \delta^T g - \xi \delta^T \delta\,,
+$$
+and its minimizer is proportional to the negative gradient direction, $-g$. Thus the GD correction is $\delta = -\rho g$ (where the learning rate $\rho$ controlling the step size is determined by other considerations).
 
-Next, we need to somehow localize our SVD.
+Similarly, let $Q_{n_c \times n}$ be the coarse projection matrix, that is, $w^c = Q w$ is the coarsening of the fine-level vector $w$. A CGD step solves the constrained minimization
+\begin{equation}
+	\min_{\delta} \left\{L(w) + \delta^T g \right\} \, {\mbox{s.t. }} \delta^T \delta = \varepsilon\,, Q (w + \delta) = Q w\,.
+\end{equation}
+The Lagrangian becomes
+$$
+	f(\delta; \xi, \lambda) := L(w) + \delta^T g - \xi \delta^T \delta - \lambda^T Q \delta\,,
+$$
+where $\xi \in \Real, \lambda \in \Real^{n_c}$ are Lagrange multipliers. The CGD direction is therefore
+$$
+	\delta \propto \left( g - Q^T \lambda \right)\,,
+$$
+where $\lambda$ is determined from the constraint $Q \delta = 0$,
+$$
+	Q \delta = - \rho Q \left(g - Q^T \lambda \right) = 0 \quad \Longrightarrow \quad  \lambda = \left(Q Q^T\right)^{-1} Q g\,.
+$$
+Thus the CGD step is
+\begin{equation}
+	w \longleftarrow w - \left( I - Q^T \left( Q Q^T\right)^{-1} Q \right) \rho g\,.
+	\label{cgd_step}
+\end{equation}
+This is nothing but a projected GD step: the usual GD update $- \rho g$ is computed, then projected onto the subspace orthogonal to the coarse variables, which is the point in that subspace closest to the GD update. The projection $T = I - Q^T (Q Q^T)^{-1} Q$ only depends on the coarse variable definition; if $Q$ is sparse and block diagonal, as in the case of non-overlapping clusters, then $T$ has the same sparsity pattern, so the cost of the projection step is linear in $w$'s dimension. Furthermore, it adds a negligible amount of work as it is only applied once per gradient averaging of a large batch.
+
+\subsection{Two-level Convergence Quantitative Prediction}
+\label{sec:mock_cycle}
+Next, we want to predict the potential efficiency of a given combination of a relaxation (GD or CGD) and a coarsening scheme,  i.e., the matrix $Q$, cf.~Sec.~\ref{sec:w_gamma}, \textbf{prior} to the actual construction of the interpolation matrix $P$ and all subsequent coarse levels. This allows us to \textbf{separate} the design of $Q$ from the design of $P$, and to obtain a \textbf{precise quantitative prediction} of the potential multi-level efficiency. This also \textbf{simplifies debugging:} if the predicted efficiency is not adequate, $Q$ should be replaced; if it is, but the actual cycle doesn't attain that prediction, $P$ is the culprit.
+
+A general scheme to obtain this quantitative prediction is via a \textbf{mock cycle}: an iteration that mimics the true multi-level cycle, except that the coarse-level correction is replaced by the idealized step. A mock cycle run consists of the following steps:
+\begin{itemize}
+	\item Choose a particular problem that has a known solution $w_0$. For instance, $w_0$ can be the current solution at a certain optimization stage. Set $q_0 := Q w_0$.
+	\item Choose an initial approximation $w = w_0 + \varepsilon$, where $\varepsilon$ is a suitable small perturbation vector. \footnote{In many systems, a random perturbation is good. In NNs, however, a random perturbation has been found to have a negligible effect on $L$'s value, so a more sophisticated approach is required.}
+	\item Apply $\nu$ GD steps (typically $\nu=1$, although the analysis is applicable to any value).
+	\item Mock coarse-level correction: correct $w$ so that $Q w \approx q_0$. This can be implemented by a couple of Kaczmarz relaxation iterations \cite[Sec.~1.1]{guide} on the system of under-determined system of equations $Q w = q_0$. One sweep suffices for an exact solve in the case of no overlap between coarse neighborhoods. In any case, the iterations should converge very fast. Kaczmarz relaxation has the important advantage of producing the minimum-norm correction to $w$.
+	\item Repeat steps 3 and 4, each repetition representing a mock cycle. Measure the rate of convergence per cycle of $w$ to $w_0$.
+\end{itemize}
+This process has been called Habituated Compatible Relaxation (HCR) \cite[Sec.~14.3]{guide}, although this is a misnomer: we call it here mock cycle, so that the term "compatible" is reserved for the GD variant aimed at locality by keeping the coarse variable fixed during relaxation (see Sec.~\ref{sec:gd_local}).
+
+In the non-linear case, there may exist many solutions in the neighborhood of $w_0$, due to the presence of many Almost Zero Modes (AZMs) that may be added to it with little effect on the loss value. For instance, we have experimentally observed that in NNs, adding random components to a solution does not significantly change its accuracy. Thus, the mock cycle may not converge back to $w_0$, but to an alternate solution; the predicted multilevel efficiency should be the speed of convergence to \textbf{that} solution.
+
+The mock cycle is easy to implement; compared with theory-driven predictions (e.g. LMA in geometric multigrid \cite[Sec.~2.1]{guide}), it is more generally applicable, and provides a more accurate prediction of the convergence rate obtainable in an actual two-level cycle that includes the same number $\nu$ of GD steps per coarse-level correction.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \newpage
+\part{Multi-level Neural Networks}
+\label{sec:nn}
+
+\section{Neural Network First Coarsening Level}
+\label{sec:nn_coarse1}
+
+As discussed above, for the first coarsening we need to sub-divide the parameters (the weights $w$) of the network into small neighborhood: mini-clusters of highly correlated parameters. Highly correlated parameters in neural networks must belong to the same layer, so the first NN coarsening levels will be done separately in each layer. (Independently, see Sec.~\ref{sec:skip_layers} about inter-layer coarsening.)
+
+\textbf{A typical layer} has a 2D grid of input points and a corresponding 2D grid of out points. (A fully-connected layer has just one out gridpoint). There are $N_{in}$ input channels, each having one activation at each input gridpoint, and $N_{out}$ output channels, each with one activation per output point. The set of input-to-output connection weights are the same at different output points; we denote them as follows.
+
+At any given output point $(x_{out}, y_{out})$, for any given sample, the $j$th channel activation (before the nonlinear activation gate, which is typically a ReLU \cite{Goodfellow-et-al-2016}), denoted $\tilde{a}_j$, is a linear combination
+\begin{equation}
+	\tilde{a}_j = \sum_i w_{ij} a_i\,,\qquad (j = 1, \dots, N_{out})\,,
+	\label{tilde_aj}
+\end{equation}
+where $i = (i_0, i_1, i_2)$; $a_i = a_{i_0,i_1,i_2}$ is the $i_0$-th input channel activation at gridpoint $(x_{out}+i_1, y_{out}+i_2)$, and
+$$
+	i_0 = 1, \dots, N_{in}\,, \quad |i_1|\leq q\,,\quad |i_2| \leq q\,
+$$
+so that $\sum_i$ is a sum over $I := N_{in} (2 q + 1)^2$ terms. $q$ is a non-negative integer; most often $q = 1$. The sets $S_i := \left\{w_{ij}\right\}_j$ and
+$\tilde{S}_j := \left\{w_{ij}\right\}_i$ are called \textbf{input} and \textbf{output sheaves}, respectively (cf.~Fig.~\ref{fig:input_sheaf}--~\ref{fig:output_sheaf}).
+\begin{figure}[htbp]
+\centering
+\begin{subfigure}[b]{0.55\textwidth}
+  \includegraphics[width=3.3in]{output_sheaf.png}
+   \caption{}
+   \label{fig:input_sheaf} 
+\end{subfigure}
+
+\begin{subfigure}[b]{0.55\textwidth}
+  \includegraphics[width=3in]{input_sheaf.png}
+   \caption{}
+   \label{fig:output_sheaf}
+\end{subfigure}
+\caption[Sheaves.]{(a) Output sheaf: the set of connections between input activations $\left\{a_i\right\}_i$ and a particular output activation $\tilde{a}_j$. (b) Input sheaf: the set of connections between a particular input activation $a_i$ and output activations $\left\{\tilde{a}_j\right\}_j$.}
+\end{figure}
+Let $g_{ij}$ be the gradient of $w_{ij}$, i.e.,
+\begin{equation}
+	g_{ij} := \frac{1}{M} \sum_{m=1}^M g^m_{ij} = 
+	\frac{1}{M} \sum_{m=1}^M \frac{\partial L^m}{\partial w_{ij}} =
+	\frac{1}{M} \sum_{m=1}^M a^m_i \frac{\partial L^m}{\partial \tilde{a}_j}\,,
+	\label{gij}
+\end{equation}
+where $L^m$ is the loss of the $m$-th sample and $\left\{a^m_i \right\}_i$, $\left\{\tilde{a}^m_j \right\}_j$ are its input and output activations, respectively, and $M$ is in principle the number of samples in the entire world. 
+
+The relation (\ref{gij}) suggests that the strongest gradient correlations in a layer are intra-sheaf correlations and that the correlations within each $\tilde{S}_j$ approximate the correlations between the input activation \textbf{strengths}, while correlation within each $S_i$ approximate correlations between output activation \textbf{gradients}.
+
+%Below, when we refer to the correlation $\corr(a_i, a_{i'})$ between input \textbf{activations} $a_i$ and $a_j$, it is the correlation over \textbf{samples}, defined by
+%\begin{equation}
+%	\corr(x,y) := \frac{\lp x, y\rp}{\left(\lp x, x\rp \lp y, y \rp\right)^{\frac12}}\,,\quad
+%	\lp x, y\rp := \sum_{m=1}^M x^m y^m\,;
+%	\label{corr}
+%\end{equation}
+%(As (\ref{corr}) is defined for any vectors $x, y \in \Real^M$, so it applies to output activations $\tilde{a}_j$, $\tilde{a}_{j'}$ as well.) whereas the correlation between \textbf{parameters} $\corr(w_{ij}, w_{i'j'})$ refers to the correlation of the vector $e_{ij}$ of error values over different \textbf{low-GER examples} with the  vector $e_{i'j'}$ of values over the same examples (or equivalently, the correlation between the corresponding gradient vectors $g_{ij}, g_{i'j'}$).
+
+We first describe here coarsening based on correlations within output sheaves $\tilde{S}_j$, because this coarsening is particularly inexpensive to create, store and manipulate, so it pays to use it in the first coarsening stage to produce much smaller networks, which are further coarsened by the more expensive types of coarsening. The first stage may also include coarsening based on input sheaves $S_i$, or simultaneously coarsening both input and output sheaves, so they will be described next.
+
+Following (\ref{gij}), coarsening an output sheaf should be quite similar to the coarsening of the corresponding input activation vector. Recall that the fine-to-coarse projection $Q$ can be quite crudely approximated -- a choice of a set of coarse variables that just need to be representative enough -- as long as the interpolation $P$ from it back to the fine level can be designed to have the required high accuracy. We therefore choose the projection of every sheaf to be the same as the projection suitable for the input activation vector $\left\{a_i\right\}_i$, thus the \textbf{same} projection is used for different sheaves. On the other hand, the interpolation $P$, which requires higher accuracy,  will be derived \textbf{separately} for each parameter, possibly involving interpolation frrom neighboring parameters belonging to other sheaves.
+
+Such a choice is very advantageous in several ways. It yields a simple and very inexpensive coarse level, both in its creation, storage, and its operation. Moreover, it will yield a way to operate coarse levels independently of the finer ones, leading to several important benefits (see Part~\ref{sec:benefits}).
+
+To start the coarsening of a layer, a fine-to-coarse projection $Q$ is therefore first constructed for the input activation vector, yielding a \textbf{coarse activation} vector $a^c = Qa$. This is done by mini-clustering the input activations into highly-correlated neighborhoods, producing a \textbf{sparse} $Q$, where the correlation between input activations $a_i$ and $a_{i'}$ is the correlation between $\left\{a^m_i\right\}_{m \in B}$ and $\left\{a^m_{i'}\right\}_{m \in B}$, which is established quite early in the training and inexpensively updated there. The batch $B$ need not be large to capture the strongest correlations. Note that it is assumed that the constant activation $a_0 \equiv 1$ is included, i.e., the intercept term $a_0^m = 1$ is included in every vector $a^m$, its connection $w_{0j}$ to the coarse activation $\tilde{a}_j$ being the so-called bias. Correspondingly, the constant activation $a_0^c \equiv 1$ (i.e., $a_0^{cm} = 1$ for all $m$) is included in the vector $a^c = Q a$. We then define $Q$ so that the average of $a_i^{cm}$ vanishes:
+$$
+    \sum_{m \in B} a_i^{cm} = 0\,,\qquad (i \not = 0)\,.
+$$
+
+The first coarse level of our layer is then constructed simply by inserting the coarse activations $a^c$ as an intermediate activation vector between the input $a$ and output $\tilde{a}$. The connections between $a$ and $a^c$ are given by $Q$ and are \textbf{fixed} during the coarse-level iterations. The connections between $a^{c}$ and $\tilde{a} = W^c a^c$ form a full matrix $W^c$ that is \textbf{learned} by the coarse-level forward/back-propagation iterations (cf.~Fig.~\ref{fig:layer_coarsening}). 
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=4in]{layer_coarsening.png}
+  \caption{Coarsening the parameters of a layer via an intermediate layer of coarse activations. The connection between inputs and coarse inputs is \textbf{sparse}.}
+  \label{fig:layer_coarsening}
+\end{figure}
+
+This in principle would mean calculating by back-propagation the gradients
+\begin{equation}
+	g^c_{i_c,j} = \frac{\partial L}{\partial w^c_{i_c,j}} =
+	\frac{\partial L}{\partial \tilde{a}_j} a^c_{i_c}\,,
+	\label{gc}
+\end{equation}
+averaging them over a suitable batch of samples, then multiplying the averages by a suitable coarse-level learning rate $\rho^c$, yielding the \textbf{coarse-level correction} $\delta W^c$, which should then be interpolated and added to the current fine-level weights $W$, namely,
+\begin{equation}
+	W \longleftarrow W + P \cdot \delta W^c\,.
+	\label{w_correction}
+\end{equation}
+
+As discussed above, the interpolation $P$ should not be the low-order interpolation obtained by a separate SVD of each neighborhood; high-accuracy can be obtained by allowing each $a_i$ to be interpolated from a set $Z_i$ that contains not only the neighborhood of $a_i$, but also some, perhaps many, neighboring neighborhoods. Moreover and more importantly, as mentioned above, the high-order interpolation should actually be derived in terms of the individual weights and can include inter-sheaf dependence, based on low-GER examples (see App.~\ref{sec:low_ger}). In such a procedure, the interpolation \textbf{neighbors} should be based on the (much less expensive to identify) activation neighbors (i.e., $w_{ij}$ and $w_{i'j}$ are defined as neighbors if and only if $a_i$ and $a_{i'}$ are), which the interpolation \textbf{coefficients} should be based on low-GER examples (cf. App.~\ref{sec:low_ger}).
+
+
+% the sheaf weights, not in terms of the activations $a$. That is, $P$ in (\ref{w_correction}) should be different for different sheaf; for the weights $W_J$ of the sheaf $\tilde{S}_J$,
+% \begin{equation}
+% 	W_J \longleftarrow W_J + P_J \cdot \delta W_J^c\,,
+% \end{equation}
+% where $P_J$ is calculated as
+% \begin{equation}
+% 	P_J = \argmin_{P_J \in Z} \left\{ {\mbox{ }}
+% 		\left\|\tilde{E}_J - P_J Q \tilde{E}_J \right\| +
+% 		{\mbox{ regularization }}
+% 	\right\}\,,
+% 	\label{P_ls}
+% \end{equation}
+% where $\tilde{E}_J$ is a matrix whose columns are low-GER examples of errors in $W_J$, and the set $Z$ restricts the non-zero terms of $P_J$ to a set corresponding to the non-zero terms expressed by the arrays $Z_i$ in the activation interpolation above.The \textbf{same sparsity pattern} $Z$ is shared by all $J$, but the \textbf{numerical coefficients} of the interpolation are derived separately for each sheaf using (\ref{P_ls}). The regularization is a suitable weighted sum of squares of the interpolation coefficients, added to avoid overfitting in some cases.
+
+A \textbf{vast possible simplification} (advisable always to be tried first) is to have the interpolation numerical coefficients, too, be based on the corresponding activation interpolation, namely,
+\begin{equation}
+    w_{ij} = \sum_i' P_{i,i'} w_{i',j}, \quad
+    P := \argmin \left\{ 
+        \sum_{m \in B} \left( a_i^m - \sum_{i' \in Z_i} P_{i,i'} a_{i'}^{cm} \right)^2 
+        \right\}\,.
+	\label{P_ls}
+\end{equation}
+This may sacrifice some coarsening accuracy (hence some convergence speed)  but will greatly simplify the algorithm. In particular, it will not need to produce low-GER examples.
+
+\textbf{Implementation detail:} Note also that every parameter defines an independent regression optimization. We have developed a fast CUDA kernel to solve these regression problems in parallel on a GPU.
+
+\section{Full Approximation Scheme (FAS)}
+\label{sec:fas}
+For the sake of clarity, we have discussed above a process that makes \textbf{one} coarse-level iteration and then immediately transfers corrections $\delta w^c$ to the fine level. What we really need is a process that can make \textbf{many} iterations (possibly even including corrections from still-coarser levels) before transferring the accumulated changes to the fine level. Note that in calculating the coarse gradients $g^c$ by (\ref{gc}), each sample $m$ should be fed-forward to obtain $a^m_i$ and $a^{c,m}_{i_c} = \sum_i Q_{i_c,i} a^m_i$, and then back-propagated to get $\partial L/\partial \tilde{a}^m_i$. These calculations are done on the current (pre-iteration) \textbf{combined} network, whose weights at each layer comprise of the sum $W + W^c Q$ (in the first iteration $W^c \equiv 0$). Can we approximate several iterations of the combined network by processing only at the coarse level (i.e., accumulating $\delta W^c$ over several iterations) before making the correction (\ref{w_correction})?
+
+The answer is yes; the way to do it is inspired by the Full Approximation Scheme (FAS) used in multigrid solvers for nonlinear problems. It is so named since the coarse-level variables are no longer directly the coarse-level \textbf{corrections} to the current fine-level solution, but redefined to approximate the \textbf{sum} of the corrections and the fine-level solution. For NN training, the suggested FAS steps are as follows:
+\begin{enumerate}
+	\item \textbf{Represent the current fine network $W$ on the coarse level} by setting the initial $W^c$ to
+	$$ \hat{W}^c = W P $$
+where $P$ is the high-accuracy interpolation (not the SVD interpolation) described above.
+	\item \textbf{Calculate the average bias} of this representation:
+	$$ b^c = {\mbox{mean}}\left\{ \left( W - \hat{W}^c Q \right) a^m \right\}\,, $$
+averaged over many samples $m$ (e.g. throughout the first coarse-level iteration, which is still using the fine-level system $W$ for feed forward and back propagation).
+	\item \textbf{Train the FAS coarse level:} starting from $W^c = \hat{W}^c$ as the initial approximation (at all layers), perform iterations to improve $W^c$. In each iteration, we average $g^c$ over a suitable macrobatch of samples (whose length is determined similarly to App.~\ref{sec:control}). For each sample we feed forward and back propagate with $\tilde{a} = W^c Q a + b^c$, yielding $g^c$ as in (\ref{gc}). The batch average $\bar{g^c}$ is then used to update
+	$$ W^c \longleftarrow W^c - \rho^c \bar{g^c}\,, $$
+	simultaneously at all layers, where the learning rate $\rho^c$ is in fact adjusted for each parameter as in App.~\ref{sec:control}\,.
+	\item \textbf{Interpolate the correction to the fine level:} recalling that the coarse level was implicitly calculating a sequence of \textbf{corrections}, what we interpolate back to the fine level is not $W^c$ but the change $W^c - \hat{W}^c$. Thus, instead of (\ref{w_correction}), the FAS correction is
+	$$ W \longleftarrow W + P \left( W^c - \hat{W}^c \right)\,. $$
+\end{enumerate}
+
+The FAS algorithm enables advancing the training a long way at the coarse level, employing in the process accelerations from still coarser levels, and yielding overall a very efficient multilevel cycle. An SGD iteration at the coarse level will actually be much less expensive than a fine-level iteration, since $Q$ is sparse and $W^c$ is much smaller than $W$ (as $a^c$ is much smaller than $a$. This is of course on top of the multi-level advantages described in Sec.~\ref{sec:mlgd}, which are also shared by the non-FAS algorithm.) The only relatively expensive part is calculating the high-order interpolation $P$, but this calculation is done only once per multigrid cycle, and the neighborhood systems $Z_i$ for this interpolation ARE the same for all sheaves, allowing a very efficient implementation.
+
+\underline{Upgraded FAS.} If needed, we can make the initial coarse layer $\hat{W}^c Q$ to be a much closer approximation to the fine layer $W$ by comparative learning (see Sec.~\ref{sec:upscaling} and App.~\ref{sec:tunning}). Unlike the case of upscaling (Sec.~\ref{sec:upscaling}), for the current purpose (accelerated training) only a crude approximation is required, which is all we would want to invest in each coarsening step. Most often, just Step 2 above would probably do.
+
+\section{Relation to Some Existing NN Algorithms}
+\label{sec:relation_existing}
+
+\subsection{One-Parameter Sheaf Coarsening. Batch Normalization}
+An extreme simplification of the above input activation coarsening is to use only one coarse variable: $a^c \in \Real$. A further simplification is to define the weights of the interpolation $P$ to be proportional to the current values of the evolving solution (rather than matching low-GER examples). This is basically identical to performing the \textbf{batch normalization transform} of the popular Batch Normalization (BN) algorithm \cite{bn}. So the BN algorithm includes a crude form of coarse-level correction, promoting faster convergence of some low-GER components. This can explain the evident effectiveness of BN. This is perhaps the \textbf{only} explanation in the case of orderly slow convergence, when the \textbf{internal covariate shift} could be more accurately represented using \textbf{global} rather than \textbf{batch-}based means and variances. (The usual training delayed-practice tends to work on the brink of instability, as explained in App.~\ref{sec:sgd_eigenmode}, in which case the BN normalization of the current batch may have an important stabilization role, and due to the fast changes it may also give the best available approximation to the current global means and variances.)
+
+\subsection{Sub-sampling Coarsening. Dropout.}
+As explained above, the projection $Q$ can be chosen quite crudely. A particularly simple choice is \textbf{sub-sampling}, where $Q_{\nu}$ of each neighborhood $\nu$ is simply one member of the neighborhood (e.g., the one closest to the neighborhood mean). So in this case $a^c$ is just a subset of $a$.
+
+Settling for a lower efficiency, one can also avoid the trouble of mini-clustering (building the neighborhoods) and choose $a^c$ to be a \textbf{random} subset of $a$, and frequently change the random choice. Then, one can also avoid the trouble of calculating the high-accuracy $P$, by averaging each gradient only over the cases in which it was not dropped out. This reproduces the popular \textbf{dropout} algorithm. This interpretation of dropouts as a vastly simplified coarsening algorithm explains its evident effectiveness (although likely much less effective than the full correlation-based coarsening described above). It also raises the interesting question of whether one can further profit from adding \textbf{coarser dropout} steps, or from introducing the dropouts at a coarser level of the multilevel solver.
+ 
+\section{Further Coarsening Levels}
+\label{sec:further_coarsening}
+For full multilevel efficiency, more levels will be needed to be constructed on top of the first coarse level described above. Each \textbf{``level''} is a new network, constructed by coarsening a previously-constructed level. The latter serves as the \textbf{fine level} of this coarsening stage, while the new level is its \textbf{coarse level}.
+
+The coarse level can be regarded as a tool to accelerate convergence of the fine-level iterations. In a typical cycle, training at each level would consist of several GD/SGD steps, intercepted by one or more visits to the \textbf{next-coarser} level, before the resulting accumulated changes at the present level are interpolation to correct the \textbf{next-finer} level. In some cases (problem types) each visits may employ a different type of coarsening.
+
+Several types of coarsening will be discussed below. The choice of types and their order generally depends on the problem at hand.  Several coarsening stages of the same type may of course be successively used on top of each other. In particular, the same type of input activation coarsening as described above may well be repeatedly used several times before another type of coarsening is added on top of them. This would in fact be the best way to go in most cases, since this coarsening is particularly inexpensive to produce and operate, so it pays to use it first to produce much smaller networks for the more expensive types of coarsening.
+
+\subsection{Input Sheaf Coarsening}
+The first coarsening described above has coarsened each \textbf{output sheaf} $\tilde{S}_j$ based on correlations among \textbf{input activations} $\left\{a_i\right\}_i$. Similarly, one can coarsen each \textbf{input sheaf} $S_i$ based on the correlations between \textbf{output activations} $\left\{\tilde{a}_j \right\}_j$. Similarly to the former, the latter correlations can be defined either as correlations between vectors $\left\{\tilde{a}^m_j\right\}_{m \in B}$, or as correlations between the vectors $\left\{w_{ij}\right\}_i$ in low-GER examples.
+
+The construction of $Q$ and $P$ for this coarsening is analogous to the one described for output sheaves, except for one important difference. While in the output-sheaf coarsening the projection $Q$ was sparse and the interpolation $P$ was responsible for achieving high accuracy, here, to ensure the efficiency of working at the coarse level, the interpolation $\tilde{P}$ will need to be sparse, so the projection $\tilde{Q}$ will need to be built to achieve high accuracy of $\tilde{P} \tilde{Q}$.
+
+Another option of course is to settle for a more dense, expensive coarse-level network and use here too the low-accuracy $Q$ and high accuracy $P$, so the minimization becomes much less expensive.
+
+\subsection{Joint Input/Output Sheaf Coarsening}
+One can combine the output-sheaf and input-sheaf coarsenings into one coarsening stage. This means introducing into the original layer ($\tilde{a} = Wa$) \textbf{two} new activation vectors, $a^c$ and $\tilde{a}^c$, constructing three consecutive layers
+$$
+	a^c = Q a\,,\quad \tilde{a}^c = W^c a^c\,,\quad \tilde{a} = \tilde{P} \tilde{a} + b^c\,.
+$$
+In the FAS approach, $W^c$ will be learned via back-propagation, starting with $W^c = \hat{W}^c$, where
+$$ \hat{W}^c = \tilde{Q} W P $$
+and
+$$ b^c = \underset{m}{\mathrm{mean}}  \left\{ \left( W - \tilde{P} \hat{W}^c Q \right) a^m \right\}\,. $$
+Then, having completed the coarse training, the accumulated \textbf{change} will be interpolated as a correction to the fine level:
+$$
+	W \longleftarrow W + \hat{P} \left( W^c - \hat{W}^c \right)\,.
+$$
+While $P, Q, \tilde{P}$ and $\tilde{Q}$ are calculated as before, separately in output and input sheaves, $\hat{P}$ is a cross-sheaf interpolation, calculated by regularized least-squares minimization
+$$
+	\hat{P} = \argmin_{\hat{P} \in \hat{Z}} \left\{ 
+		\sum_k \gamma_k \left\| W^k - \hat{P} W^{k,c} \right\| / \sum_k \gamma_k
+		+ {\mbox{ regularization }}
+	\right\}\,,
+$$
+where the sum is over a set of low-GER examples $\left\{W^k\right\}_k$, and $\gamma_k$ is the weight of the $k$-th example (see App.~\ref{sec:low_ger}). The set $\hat{Z}$ specifies the interpolation sparsity pattern, which is again based on activation neighborhoods. Namely, the interpolation to $w_{ij}$ is performed from the set of weights
+$$
+	B_{ij} = \left\{ w^c_{l,m} | l \in B_i\,, m \in \tilde{B}_j \right \}\,,
+$$
+where $B_i$ is the subset of $a^c$ used in a high-accuracy interpolation to $a_i$, and $\tilde{B}_j$ is the subset of $\tilde{a}^c$ used in a high-accuracy interpolation to $\tilde{a}_j$.
+
+%This Cartesian product of interpolation neighborhoods seems to make the joint coarsening particularly attractive, as it %would allow accuracy higher than can be achieved when input and output neighborhoods are used separately to %define the interpolation.
+
+\subsection{Direct Parameter Coarsening}
+\label{sec:direct_coarsening}
+Following several activation-based coarsening stages, a level may be reached at which more such stages would no longer be effective, so further acceleration should use a direct, cross-sheaf parameter coarsening. This means applying the aforementioned process of ``coarsening in neighborhoods'' (Sec.~\ref{sec:nn_coarse1}) to the full set $W$ of weights in the layer. This will yield a coarse set $W^c = Q W$ with sparse $Q$ and high-accuracy interpolation $P$ such that $\|e - P Q e\|$ is small for any low-GER error $e$. Since $P$ and $Q$ in this case will generally have no particularly useful (e.g., sheaf-based) structure, running an independent (FAS-style) coarse level would not be more efficient (more complicated, in fact) than running the fine + coarse network as described next. Note that in this case the projection $Q$ will not be explicitly used at all (other than in designing $P$).
+
+The feed forward/back propagation of each sample will use the fine-level weights $W$, which will be immediately updated at each iteration, instead of accumulating changes of coarse variables. The network update will use the coarse-level gradient $g^c$, defined by
+$$
+	g^c_l = \frac{\partial L}{\partial W^c_l} = 
+	\sum_k \frac{\partial L}{\partial W_k} \frac{\partial W_k}{\partial w^c_l} =
+	\sum_k g_k P_{kl}\,, \quad {\mbox{i.e. }} g^c = P^T g\,,
+$$
+where we have reshaped $W$ and $g$ to one dimensional vectors.
+
+One GD iteration of the coarse level will proceed as follows: for each microbatch, calculate its average gradient $\overline{g}$ and then (just once per microbatch) calculate $\overline{g^c} = P^T \overline{g}$. Then, over a sequence of $K$ microbatches, calculate the mean and variance
+$$
+ \overline{\overline{g^c_l}} = {\mbox{mean}}\left( \overline{g}^c_l(\right)\,,
+ (\sigma^c_l)^2 = {\mbox{mean}}\left( \overline{g^c}_l - \overline{\overline{g^c_l}} \right)^2\,.
+ $$
+As soon as $K$ is sufficiently large to yield
+$$ r^c_l = \frac{(\sigma^c_l)^2}{\overline{\overline{g^c_l}}} \ll 1\,,$$
+ the calculated $\overline{\overline{g^c_l}}$ is an adequate estimate of the true $g^c_l$. With a proper choice of $K$ (see App.~\ref{sec:control}) and a coarse GD learning rate $\rho^c$, the corrections are then calculated as
+$$
+	\delta W^c_l = - \rho^c \min\left\{ 1, \frac{K}{r^c_l} \right\} g^c_l
+$$
+and immediately interpolated to the fine level:
+$$ W \longleftarrow W + P \cdot \delta W^c\,.$$
+
+Note that the computational cost per sample at the coarse level here is practically the same as at the fine level (not much smaller as in other coarsening types). On the other hand, at the training stage at which this coarsening is applied, the number ($K$) of samples required for approximating the true coarse gradient $g^c$ is likely to be much smaller than the number required to approximate the fine-level gradient $g$.
+
+On top of this direct-parameter coarsening stage, further, \textbf{still coarser stages} of the same type can be constructed, all using the same base feed forward and back propagation, building their gradient computation bottom-up, while introducing corrections top-down.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Inter-layer Coarsening: Skip Layers}
+\label{sec:skip_layers}
+
+Generally, there seems to be no particular correlation between individual parameters belonging to different layers, so cross-layer coarsening cannot be done in the way described above. However, with some resemblance to multigrid solvers, the slowness of information exchange across deep networks can be alleviated by hierarchical ``coarsening in layers'', achieved by several stages of \textbf{skip-layer coarsening}.
+
+In each such coarsening stage, one adds a sequence of \textbf{skip layers} in parallel to the fine level. Each skip layer \textbf{adds} connections from all the input activations ($a$) of one fine-level layer to the output activations ($\tilde{a}$) of a \textbf{later} (most typically the next) layer. Usually, the fine level would already be a coarsened level, in which case the skip layer can connect a \textbf{coarse} input activation vector (e.g., $a^c = Qa$) to a \textbf{coarse} output activation vector (e.g., $\tilde{a}^c = \tilde{P} \tilde{a}$) of the later layer. The skip layers should be \textbf{disjoint} from each other (traversing disjoint segments of the fine network), to enable independent coarse-level iterations.
+
+\textbf{A learning iteration} with skip layers is performed on a batch of samples. Each sample is fed forward through all connections (skip-layer contributions added to the fine level ones) and then back-propagated through all of them, computing gradients for both fine-level and skip-layer connections. All the gradients are averaged over the batch. After averaging over a large enough batch (cf.~App.~\ref{sec:control}), one can use the gradients, multiplied by suitable learning rates, to do either a fine-level iteration (updating the fine-level connections) or a \textbf{coarse-level iteration} (updating all  skip connections plus all fine-level connections of any layer not traversed by a skip layer).
+\begin{figure}[htbp]
+\centering
+\begin{subfigure}[b]{0.55\textwidth}
+  \includegraphics[width=3in]{skip_architecture.png}
+   \caption{}
+   \label{fig:skip_architecture} 
+\end{subfigure}
+
+\begin{subfigure}[b]{0.55\textwidth}
+  \includegraphics[width=3in]{skip_architecture_coarse.png}
+   \caption{}
+   \label{fig:skip_architecture_coarse}
+\end{subfigure}
+\caption[Skip layer architecture.]{(a) Skip layer architecture. Layer $1$'s input is connected to layer $2$'s output via the path $W_1-{\mbox{ReLU}}-W_2$ and the skip connection with parameters $W_{12}$. (b) Once layers $1$ and $2$ have been coarsened (we assume for illustrative purposes that only inputs were coarsened in layer $1$, and only outputs were coarsened in layer $2$), the skip connection connects the coarse activations instead.}
+\end{figure}
+
+At each coarse-level round, starting with all skip connections set to $0$, they subsequently grow through the coarse-level iterations. At some point one would want to translate all the skip connections into corrections to the fine level connections, and then start another coarse-level round. This translation can be done by \textbf{comparative learning} (see App.~\ref{sec:tunning}), with each segment of fine-level layers traversed by a skip layer guided by the \textbf{total coarsened segment} (the original segment plus the skip layer). Thanks to its local nature, this learning should converge relatively quickly, and it need not be converged much, since inaccuracies will be corrected as part of the next coarse-level round.
+
+Instead of so translating the skip connections (or when this cannot be done accurately enough), another option is to simply leave them as permanent parts of the network. This would at most double the overall number of parameters, but may be useful in various types of applications, like the one discussed next.
+
+Conversely, for various applications (such as network compression or fast first-response networks; see Sec.~\ref{sec:network_compression}), one would actually want to approximate the fine level by a skip-layer level. For example, layers $l-1$ and $l$ with weights $W^{l-1}$ and $W^l$ and biases $b^{l-1}$ and $b^l$, respectively, can be approximated by the skip layer $(l-1,l)$ with weights
+$$ \hat{W}^{(l-1,l)} = W^l W^{l-1} $$
+and biases
+$$ b^{(l,l-1)} = \underset{m}{\mathrm{mean}} \left[ W^l \sigma(W^{l-1}(a^m)^{l-1} + b^{l-1}) + b^l - \hat{W}^{(l-1,l)} \right]\,,$$
+averaged over a sufficiently long batch of samples. Here $\sigma$ is the activation function of layer $l-1$ and $(a^m)^{l-1}$ is its input activation vector for sample $m$. Using a larger batch o samples, a much better approximation (e.g., for the purpose of upscaling, cf. Sec.~\ref{sec:upscaling}) can be obtained by comparative learning (App.~\ref{sec:tunning}).
+
+Similarly to Sec.~\ref{sec:fas} above, this approximation can be used for an \textbf{FAS type} operation of the skip-layer, making it autonomous and allowing it to be accelerated by visits to still coarser levels. The interpolation of the correction $ W^{(l-1,l)}  - \hat{W}^{(l-1,l)}$ to the pair of fine-level layers can be done by local comparative learning like the translation described above.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Correlation-based Receptive Fields in Convolutional Layers}
+\label{sec:extended_region}
+
+As discussed above, the input activation vector ($a$) to each filter in a convolutional layer is actually an $N_{in} \times k \times k$ tensor comprising of the values of $N_{in}$ channels at each gridpoint of a $k \times k$ input region (called a \textbf{receptive field} \cite[Sec~.6]{Goodfellow-et-al-2016}); most often $k = 3$. Using mini-clustering, this input vector ($a$) is divided into a collection of neighborhoods which are then separately coarsened to collectively yield the coarse input vector $a^c$. Each neighborhood is a subset of highly correlated activations. Note however that these correlations may often naturally extend beyond the $k \times k$ receptive field to include activations at farther gridpoints. Without necessarily increasing the size of $a^c$, we can make it more representative by basing it on such extended neighborhoods (adding those extended neighborhoods to the fine-level receptive fields). At inference, the overall layer-wide calculation of all vectors $a^c$ will remain an inexpensive convolution.
+
+this approach can lead to rich \textbf{correlation-based lateral (``horizontal'') connections.} This will strengthen the network's ability to account for feature positional relations and make earlier detection of extended-scale features, boundary ownership, etc., making the network more resilient to occlusion, corruption, and noise (see for example discussion of lateral connections in \cite{montobbio2019kercnns, spoerer}). Lateral connections of different nature are introduced through attention mechanisms (see, e.g. \cite{attention}), but those are by far more expensive to train and use, basically because they do not directly exploit feature correlations common to different samples (relying on learning instead).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Upscaling}
+\label{sec:upscaling}
+
+\subsection{General}
+\label{sec:upscaling_general}
+Generally, ``\textbf{upscaling}'' is the process off replacing a computationally expensive fine-level solver with a much-less-expensive coarse-level one, which omits fine level details but retains the accuracy in the eatures of interest (see \cite{systematic_upscaling}).
+
+upscaling is relatively straightforward in systems already equipped with a good multilevel (e.g., multigrid) fast solver. The upscaling process can then be based on the same coarsening scheme that was first developed just for the purpose of accelerating the fine-level solver. Casting the coarse-level system of such a solver in the Full Approximation Scheme (FAS - see \cite{brandt77}), we already have not only a fine-to-coarse projection of the variables, but also a ``fine-to-coarse defect correction'' term added to each coarse-level equation (see, e.g., \cite[Sec.~8.2]{guide}). during the multi-level \textbf{fast-solving process}, this term, usually denoted $\tau$, is defined so that the corrected coarse-level equation is exactly satisfied by the \textbf{current} fine-level approximate solution (projected to the coarse variables space). In \textbf{upscaling}, we use many windows of fine-level approximate solutions to produce (by projection) many local examples of the coarse-level solution, each with its own $\tau$ corrections. From these examples, we can learn how each $\tau$ term depends on the \textbf{coarse-level} variables in the neigborhood. Once ths has been learned in sufficient generality, the fine level is no longer needed.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newpage
+\part{Potential Benefits}
+\label{sec:benefits}
+
+\section{Fast Training}
+\label{sec:fast_training}
+\begin{itemize}
+\item The number of GD iterations needed for convergence is vastly reduced by the multi-level solver.
+\item Per the equivalent of one GD iteration, the number of samples needed to be averaged over is much smaller (see Sec.~\ref{sec:mlgd}).
+\item Per sample, at higher training levels, using FAS coarsening (Sec.~\ref{sec:fas}), far less operations are needed for fast forward and back propagation.
+\item Fast information transmission is possible in deep networks owing to hierarchical skip-layer connections (Sec.~\ref{sec:skip_layers}).
+\item Less layers may be required if the correlation-based receptive fields are implemented (Sec.~\ref{sec:extended_region}).
+\end{itemize}
+
+\section{Fast Stable Outer Iterations}
+\label{sec:out_iteration}
+In many problems, the iterative solver is actually built on inner iterations (such as SGD) that serve outer iterations (such as generator/discriminator iterations in GAN algorithms or Q iterations in neural reinforcement learning). Typically in such situations, many outer iterations can be confined to the coarse levels of the inner solver, making those iterations both faster and more stable.
+
+\section{High Accuracy}
+\label{sec:high_accuracy}
+\begin{itemize}
+\item The multi-level cycles enable the networks to continue efficient learning beyond the point where current training processes stagnate, thereby achieve higher accuracy.
+\item Accuracy can be much enhanced through the use of much larger (wider) activation vectors and much larger multi-scale receptive fields (see Sec.~\ref{sec:extended_region}) without substantially slowing down inference (since the coarse vectors need not be widened).
+\item The adaptable correlation-based receptive fields in convolutional layers (see Sec.~\ref{sec:extended_region}) can detect more positional relations and extended-scale features.
+  \item Attention by fast first-response operation (Sec.~\ref{sec:network_compression}), network bifurcations (Sec.~\ref{sec:bifurcation}) and more effective use of data (Sec.~\ref{sec:effective_data}) -- can all enhance accuracy.
+\end{itemize}
+
+\section{Network Compression}
+\label{sec:network_compression}
+\begin{itemize}
+\item Experiments (for example, adding random perturbation to an optimal solution) indicate that the components that are quickly reduced by GD at the fine level often contribute little, if anything, to the network accuracy. (See also a relevant discussion in App.~\ref{sec:sgd_eigenmode}). Our coarse levels retain much of the discriminatory power of the full network, since they retain all the ReLU steps between layers and only distill the far-too-numerous, redundant parameters within each layer. Provided the coarse levels are autonomous (using FAS - see Secs.~\ref{sec:fas},~\ref{sec:skip_layers}), a very good approximate network can therefore be constructed by \textbf{omitting some fine levels} of an optimal solution, possibly followed by fine-tuning. This can reduce both the network size and inference time by a large factor.
+\item In particular, for \textbf{specialized tasks} very high compression can be obtained thanks to especially strong correlations at all layers. This is particularly important for implementation on limited-capacity end devices.
+\item Collapsing more fine levels would produce a less accurate but even faster network. This can be used as an extra-fast \textbf{first-response} network, important for making fast rejection decisions (e.g., deciding which images, or what regions in an image, can be excluded from further scrutinizing), or for quickly choosing a sub-network (see Sec.~\ref{sec:bifurcation}), etc.
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Data Efficiency}
+\label{sec:effective_data}
+\begin{itemize}
+	\item \textbf{Much less training data} is needed for multilevel training, as explained in Sec.~\ref{sec:mlgd}. In other words, correlation-based networks can use much less data since they learn hidden similarities between samples.
+	\item \textbf{Unlabeled samples}, only fed-forwarded into the network, can enhance the accuracy of activation correlations. More importantly, one can choose to label and back-propagate only samples showing marked disagreement with the established correlations. This can be used for \textbf{lifelong learning} of deployed networks. Out-of-distribution detection can also be used to expose corrupted input.
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Network Bifurcation}
+\label{sec:bifurcation}
+The narrower the network task and/or data, the stronger the correlations at all layers, enhancing all the benefits listed above. Hence a lot can be gained by bifurcating a network at some layer into different sub-networks to deal with different sample classes at different input regions, with special attentions where needed. The multi-level framework may offer some tools to this end:
+\begin{itemize}
+	\item Fast first-response coarse networks (see Sec.~\ref{sec:network_compression}) can be employed to detect the need and places for attention and bifurcations.
+	\item A potential indicator for the need to split the data into different routes can appear in the formation of neighborhoods (Sec.~\ref{sec:neighborhoods}), when splitting the input samples into classes highly enhances the intra-neighborhood correlations within each class.
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newpage
+\part{Appendices}
 
 \appendix
 
-\section{Eigen-Components}
-\label{sec:pc}
-Let $X_{s \times n}$ be a matrix of $n$ activation values over $s$ samples. We call the principal components of $X$ {\it eigen-components}.
+\section{SGD Eigenmode Analysis}
+\label{sec:sgd_eigenmode}
+We analyze \SGD~iterations, looking at one particular error eigen component of the Hessian, with eigen value $\lambda$.
 
-The first principle component $y = X v$ maximizes variance, i.e., 
+\textbf{Notation:} $\mu_k$= amplitude of true average of the error component after the k-th iteration. $\mu_k + r_k$ its average over the minibatch employed in the k-th iteration. (By ``minibatch" here we mean the batch of samples averaged over between successive \SGD~updates; this is \textbf{not} necessarily related to the batch of samples processed simultaneously based on hardware or parallelization considerations.) We assume $\mathbf{E}[r_k]=0$, $\mathbf{E}[r_k^2]=\sigma^2$, $\mathbf{E}[r_k,r_{k'}]=0$ for $k \neq k'$, where $\mathbf E[\cdot]$ denotes the expected value.
+$\rho$ = learning rate, $\beta=\lambda \rho \ll 1$, 
+
+In the k-th iteration 
 \begin{equation}
-    \begin{aligned}
-       \max_v\, & E[(X v)^2] = \|X v\|^2_2 \\
-        \text{s.t.}\, & \|v\|^2_2 = 1\,.
-    \end{aligned}
+\mu_k = \mu_{k-1} - \lambda \rho (\mu_{k-1} + r_{k-1})
+\label{eqn:muupdate}
 \end{equation}
-$v$ is the eigenvector corresponding to the maximal eigenvalue of $X^T X$. Similarly, the coefficient vectors of further eigen-components are the other eigenvectors of $X^T X$, i.e., they are the right-singular vectors of $X$. Indeed, let $X = U \Sigma V^T$ be the SVD; then
+or
 \begin{equation}
-    X^T X V = V \Sigma U^T U \Sigma V^T V = V \Sigma^2\,.
+	\mu_k = \mu_{k-1} (1- \beta)  - \beta r_{k-1}
+	\label{eqn:muupdate2}
 \end{equation}
-Thus, the eigen-components of $X$ are the columns of $Y = X V$.
-
-The coefficient vectors are orthonormal: $V^T V = I$. Eigen-components are orthogonal, because 
+Hence we can recursively derive:
 \begin{equation}
-    Y^T Y = V^T X^T X V = \Sigma^2\,.
+  \mu_k = (1-\beta)^k \mu_0 - \beta \sum_{i=0}^{k-1} (1-\beta)^i r_{k-i-1}
 \end{equation}
-Thus, the cosine similarity between two eigen-components $y_i, y_j$ is $0$ for $i \not = j$.
 
-\section{Localization}
-\label{sec:localization}
-Different methods of recombining vectors (typically, activation feature vectors) to better localize their clusters.
-
-\subsection{Optimal Rotation to Reduce Spread}
-\label{sec:opt_spread}
-Given a set of points $x_1,\dots,x_n \in \Real^s$ (e.g., activation sample vectors) with $\|x_i\|_2 = 1$, we seek $n$ linear combinations $y_i = \sum_{j=1}^n q_{ij} x_j$ that minimize the spread (average distance from the centroid), are orthogonal and normalized.
+%\begin{equation}
+%\mu_k = (1-\beta)^k \mu_0 + \sum_{i=1}^k (-\beta)^i A_{ki}
+%\end{equation}
+%where
+%\begin{equation}
+%A_{k,k} = A_{k-1,k-1} = r_1, \quad A_{k,1} = A_{k-1,1} + r_k = \sum_{i=1}^k r_i
+%\end{equation}
+%and
+%\begin{equation}
+%A_{k,i} = A_{k-1,i} + A_{k-1,i-1}, \quad (2 \le i \le k-1).
+%\end{equation}
+%In some simple steps it follows that 
+%\begin{equation}
+%\mu_k = (1-\beta)^k \mu_0 - \beta \sum_{i=1}^k r_i  + \beta^2\sum_{i=1}^{k-1}(k-i)r_i + O(\beta^3)
+%\end{equation}
+Therefore:
 \begin{equation}
-    \begin{aligned}
-       \min_Q\, & f(Q) := \sum_i \left( y_i - \overline{y}\right)^2 \\
-        \text{s.t.}\, & \|y_i\|^2_2 = 1\,, \forall i,
-        \text{and}\, & (q_i, q_j) = 0\,, \forall i \not = j\,,
-    \end{aligned}
-    \label{q_min}
+\mathbf E [\mu_k] = (1-\beta)^k \mu_0 
 \end{equation}
-where $\overline{y} = \frac{1}{n} \sum_i y_i$ and $q_i$ is the $i${\it th} column of $Q$. This is a hard computational problem if solved with usual constrained quadratic minimization black-box routines, as there are $O(n^2)$ constraints.
 
-I will consider here for simplicity the normalization constraint $Q^T Q = I$; a modification for the normalization $|y_i\|^2_2 = 1$ would have to be made. Eq.~(\ref{q_min}) is a special case of the problem considered by \cite{qpqc_sgd}. Indeed, since $Y = X Q$, one can rewrite
-$$ f(Q) = \|X Q - \frac{1}{n} X Q u u^T \|_F^2 =
-\|(I - \frac{1}{n} u u^T) X Q\|_F^2 \,, $$
-where $u$ is a vector of $1$'s. Or,
-$$ f(Q) = tr(Q^T X^T (I - \frac{1}{n} u u^T) X Q) = tr(Q^T A Q) $$
-where $A = X^T (I - \frac{1}{n} u u^T) X$ can be calculated in $O(n^2)$ operations. Algorithm~2 in (\ref{q_min}) is a stochastic gradient descent, projected into the space of orthogonal matrices after each step. Suppose even that we use gradient descent; this algorithm costs $O(n^3)$ per iteration, since calculating the projection step (i.e., orthogonalizing the columns of $Q$) requires a QR decomposition, for instance, which costs $O(n^3)$. We don't need to solve to convergence; just a few GD iterations should suffice to reduce $f$ by a significant factor before GD slows down.
+\begin{equation}
+\mathbf E \left [\left(\mu_k - \mathbf E [\mu_k] \right)^2 \right ] =
+\beta^2\sigma^2 \sum_{i=0}^{k-1} (1-\beta)^{2i} \\ =
+\beta^2\sigma^2\frac{1-(1-\beta)^{2k}}{1-(1-\beta)^2}\,.
+\label{eqn:noise1}
+\end{equation}
+The usual \SGD~practice is to employ a fixed minibatch size. This means that the variance $\sigma^2$ is nearly fixed throughout the iterations for each eigen component, while $\mu$ should converge to $0$. For any component that converges reasonably fast, an especially for high-$\lambda$ components, $(1 - \beta)^{2k}$ is small, hence the variance is
+\begin{equation}
+\mathbf E \left [\left(\mu_k - \mathbf E [\mu_k] \right)^2 \right ] \approx \frac{\beta}{2} \sigma^2\,.
+\end{equation}
+For stability, this variance should be smaller than $\mu_0^2$, or $\lambda \rho < 2 \mu^2/\sigma^2$. Hence,
+$$
+	\rho < \min \left( \frac{2 \mu_0^2}{\lambda \sigma^2} \right) \sim
+	\lmax^{-1} \min_* \left( \frac{\mu^2}{\sigma^2} \right)\,,
+$$
+where $\min_*$ is taken over all components we do not wish to explode at this point and whose eigenvalue is comparable with $\lmax$, where $\lmax$ is the highest $\lambda$ of the components we do not wish to explode. Here $\mu$ refers to the value at the current stage of training, which does not change much in the analysis interval, i.e. between $\mu_0$ and $\mu_k$, where $k$ is just sufficiently large to make $(1 - \beta)^{2k}$ significantly smaller than $1$.
 
-If $n$ is large, one could reduce cost by random sampling:
+Hence, the convergence factor per iteration for a component with eigenvalue $\lambda$ is $1 - \epsilon$, where
+\begin{equation}
+  \epsilon = \lambda \rho < \frac{\lambda}{\lmax} O\left( \min_* \frac{\mu^2}{\sigma^2} \right)\,.
+  \label{eqn:convrate1}
+\end{equation}
+Convergence quickly becomes extremely slow, particularly for small-$\lambda$ components, not only due to the smallness of the deterministic factor $\lambda/\lmax$, but much more so because for components with $\lambda \approx \lmax$ the values of $\mu / \sigma$ decrease fast.
+
+Attempting to counter this slowness, \SGD~practice found it better not to insist on strict convergence of all components: Continuing to use the same $\rho$, the magnitude of the noise (\ref{eqn:noise1}) grows, increasing the value of $\mathbf E[|\mu_k|]$ until it becomes $O(\beta^{\frac12}\sigma)$. Note that this is a re-growth of the \textbf{true} gradients, i.e., gradients averaged over all data, not just over a minibatch (i.e., not the kind reported for instance in \cite[Fig.~8.1]{Goodfellow-et-al-2016}). After sharply dropping the learning rate, for relatively short training period the gradients will sharply decrease in size, but will then start climbing back up to $O(\beta^{\frac12} \sigma)$.
+
+The interesting fact is that \textbf{during this re-growth of the true gradient sizes, the loss function continues its decline, and the accuracy continues to improve}, i.e., the system continues its positive learning. This clearly shows that the learning mainly depends not on the diverging high-$\lambda$ components, but on the lower $\lambda$ components that continue to converge (albeit slowly). For them, the longer use of high $\rho$ is actually beneficial (which is exactly why practitioners find doing that useful).
+
+The multi-level training aims at treating the two problematic sides of the stochastic ill conditioning: First, it can apply only a small number of updates at the fine level, thus avoiding the large accumulation of noise at the high-$\lambda$ components. Second, and more importantly, by converging the low-$\lambda$ components in their lower dimensional subspace, both factors of slowness in (\ref{eqn:convrate1}) are largely mitigated: first, the lower dimensional subspace does not include components with eigenvalues larger than some $\llow$, allowing for $O(1/\llow)$ instead of $O(1/\lmax)$ learning rates. Secondly, the $\min_*$ minimization is over components with $O(\llow)$ instead of over $O(\lmax)$ eigenvalues, for which the ratios $\sigma/\mu$ may be  smaller. In contrast, in the usual (single-level) SGD algorithm, as the averages $\mu$ decrease, becoming mostly averages of lower-$\lambda$ components, the variances continue to include the variances typical of the highest-$\lambda$.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{SGD/GD Control in the Multilevel Framework}
+\label{sec:control}
+
+As noted in App.~\ref{sec:sgd_eigenmode}, in each multilevel cycle and at each coarsening level, the fine-level \SGD~should be terminated as soon as the gradient norm starts to grow, and at that point we switch to the next coarser level. But how should the \SGD~processing itself be controlled (both in this framework and generally)?
+
+To best control \SGD, it is very useful to calculate gradient \textbf{variances} along with gradient \textbf{averages}, which incurs only a small extra cost.
+
+Not to be confused with the per-eigenmode notation of App.~\ref{sec:sgd_eigenmode}, we denote here the true average of the gradient $g_i$ of the weight $w_i$ by $\mu_i$, and its true variance \textbf{per sample} by $\sigma_i^2$ (i.e., the average of $(g_i-\mu_i)^2$ over all input instances). We again denote by \textbf{minibatch} a batch of $K$ samples, and by $\tilde{\mu}_i$ the gradient average over the batch, which is an estimate for $\mu_i$, and can be used to update $w_i$. Estimating $\sigma_i^2$ during minibatch processing adds relatively little work to estimating $\mu_i$, since it can be based on averages of $g_i$ over \textbf{microbatches} of size $N_{\mu b}$. The variance per sample estimate is the per-microbatch variance estimate times $N_{\mu b}$.
+
+Barring other considerations, we adopt the general approach of \textbf{steepest descent}, namely, the correction we want to make is
+\begin{equation}
+  w_i \longleftarrow w_i - \rho \mu_i\,,
+  \label{gd_step}
+\end{equation}
+where $\rho$ is the \textbf{learning rate} for the level (and layer) being trained. $\rho$ can be selected  experimentally (e.g., as half of the value at which training becomes unstable) and verified to provide effective error narrowing by the predictors described in Sec.~\ref{sec:predictors}).
+
+Since the minibatch yields only estimates $\tilde{\mu}_i$ and $\tilde{\sigma}_i^2$ to $\mu_i$ and $\sigma_i^2$, respectively, one needs to replace (\ref{gd_step}) by
+\begin{equation}
+  w_i \longleftarrow w_i - \rho \mu_i \min\left\{ 1, \frac{K \tilde{\mu}_i^2}{\theta \tilde{\sigma}_i^2} \right\}\,.
+  \label{gd_step_k}
+\end{equation}
+where $\theta$ is some $O(1)$ constant, say, between $4--10$. Indeed, for $\tilde{\mu}_i$ to be a reasonable approximation to $\mu_i$, it should be an average over $k_i = \theta \tilde{\sigma}_i^2/\tilde{\mu}_i^2$ samples; if $K > k_i$, then the minibatch already includes long enough averaging; but if $K < k_i$ then we have to average over $k_i/K$ minibatches, so we have to multiply the minibatch average by $K/k_i$.
+
+What should the minibatch size $K$ be? A reasonable choice is a weighted average of all $k_i$, with weight reflecting each gradient's importance (or size), e.g.,
+\begin{equation}
+  K_* = \frac{\sum_i \tilde{\mu}_i^2 k_i}{\sum_i \tilde{\mu}_i^2}\,,
+  \label{k_star}
+\end{equation}
+where $i$ runs over all parameters (or all parameters of a layer, if different layers are updated separately). Choosing $K$ smaller than $K_*$ is fine, but if it is \textbf{much smaller} then too many steps (\ref{gd_step_k}) are made to accumulate one reliable correction, which adds unnecessary overhead and noise to the process. On the other hand, $K$ should not be \textbf{much larger} than $K_*$, lest too long averaging is done per correction step.
+
+We use minibatches of size $K = K_*$, in which case one correction step is (roughly) equivalent to one \textbf{deterministic} Gradient Descent (GD) step, i.e., it employs (approximately) the \textbf{true} gradients. We call the iteration (\ref{gd_step_k}) with $K = K_*$ \textbf{quasi GD iteration}.
+
+\subsection{Sampling noise. Needed Averaging Length (NAL).}
+\label{sec:sampleing_noise}
+Suppose we have random variable $X$ with mean $\mu$ and variance $\sigma^2$. 
+Lets assume we need to estimate this mean $\mu$. The standard method would be to sample and calculate the {\it sample mean} $S_K$ using $K$ samples $x_i$ of $X$:
+\begin{equation}
+S_K = \frac{1}{K}\sum_{i=1}^K X_i
+\label{eqn:estimate}
+\end{equation}
+Why the sample mean is a good predictor for $\mu$? Because the law of large numbers shows that  our estimator can get as close as needed to the true value as we increase the number of samples:
+\begin{equation}
+\lim_{K \rightarrow \infty} S_K = \mathbb{E} X = \mu
+\end{equation}
+But, how many samples do we need to use for an accurate estimation?  In other words how far could our estimator $S_K$ deviate from the true mean $\mu$? We definitely do not want the deviation to be larger than the quantity we are trying to estimate ($\mu$): 
+\begin{equation}
+\mathbb{E}(S_k - \mu)^2 \le \theta \mu^2
+\label{eqn:snr_req}
+\end{equation}
+The parameter $0 < \theta < 1$ determines the needed accuracy. Note that for any $K>0$ the expected value of $S_K$ is exactly the mean $\mu$ we are aiming to estimate and therefore the equation above represents (by definition) the variance of $S_K$:
+\begin{equation}
+\mathbb{E}(S_K - \mu)^2 = \var(S_K) 
+\end{equation}
+Calculating this expectation and assuming that our samples are independent we get:
+\begin{equation}
+\var(S_K) = \frac{\sigma^2}{K}
+\end{equation}
+
+The dependency on $K$ is a basic property of our estimator. If we somehow know or can get a descent estimate of the magnitude of $\mu$ and $\sigma$ then we can determine the \textbf{Needed Averaging Length (NAL)}: the minimum number of samples we will need to take in order to get to the accuracy we defined in (\ref{eqn:snr_req}), which is
+\begin{equation}
+\frac{\sigma^2}{K \mu^2} \le \theta \quad \Longrightarrow \quad K = 
+\ceil{\frac{\sigma^2}{\theta \mu^2}}\,.
+\label{eqn:snri}
+\end{equation}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Production and Use of Low-GER Examples}
+\label{sec:low_ger}
+
+We describe here how the production and use of low-GER examples can be done at all levels throughout the solution process, without needing to store then. We only store the (sparse) interpolation $P$ at each level, which is continuously updated and improved to an increasingly higher accuracy as additional, increasingly-lower GER examples are generated on-the-fly.
+
+Generally, the multi-level cycles \textbf{increasingly} contain more levels: starting with two-level cycles, increasingly coarser levels are added at subsequent cycles. At each level, the interpolation can have low accuracy at first, but should become increasingly more accurate as the number of coarser levels grows. This is because at higher (coarser) levels the GER is much lower, so much larger learning rates are employed, which in turn cause much greater amplification of high-GER interpolation errors.
+
+For clarity, we first describe the \textbf{deterministic} optimization case, then the modifications for the general \textbf{stochastic} case and the special case of neural network training.
+
+\subsection{The Deterministic Case}
+At every level, the GD iterations efficiently liquidate the highest-GER error components, and then start to struggle with progressively reducing lower GER components. So the differences between successive approximations tends to have progressively lower GER. Hence, the parameter correlations of low GER components, especially the stronger correlations, will increasingly surface. This will signal the point at which transition should be made to the next coarser level. Also, the strong correlations can be used to miniclusters the parameters into small neighborhoods and build from them a sparse and crude projection $Q$, and interpolation $P$. Higher accuracy interpolation would require additional low-GER examples, which unfortunately cannot be efficiently obtained from the GD iteration, as these iterates are slow to change low-GER components.
+
+For the first visit to the next coarser level, the low accuracy of $Q$ and $P$ should suffice to create a coarse level that efficiently reduces the initial low-GER errors. As a result, upon interpolating the changes to the fine level and applying GD there, the slowing down of the GD iterations now reveals a \textbf{new} low-GER example, much different from the ones that were used to calculate the low-accuracy $P$. This new low-GER example can thus be used to improve $P$.
+
+A new example $e_{NEW}$ can change an existing interpolation $P_{OLD}$ to a new, improved one $P_{NEW}$ through the (trivial to solve) minimization
+\begin{equation}
+  P_* = \argmin_{P \in Z} \left\{ \left\| P - P_{OLD} \right\| \,\, | \,\, e_{NEW} = P Q e_{NEW} \right\}
+\label{p_star}
+\end{equation}
+and the under-correction
+$$
+  P_{NEW} = P_{OLD} + \theta \left( P_* - P_{OLD} \right)\,,
+$$
+  with some $0 < \theta \leq 1$. More and more examples can in this way gradually improve the interpolation \textbf{weights}. To increase the interpolation accuracy one can gradually also expand the interpolation \textbf{stencils} $Z$ (to neighboring neighborhoods, as mentioned above). A new expansion is due when the last expansion is shown to have been highly beneficial, as measured on new examples.
+
+Thus, at any level, before switching to a coarser level the interpolation $P$ can be improved, effectively by producing and using an error example for which the algorithm has so far been inefficient. As cycles progress to high levels producing lower GER examples, more accurate interpolations will emerge as needed.
+
+Note that this gradual change of interpolation is particularly fitting in solving highly \textbf{nonlinear} problems, where the Hessian gradually changes during the solution process.
+
+\subsection{The Stochastic Case}
+The same algorithm can basically be used with quasi GD iterations (see App.~\ref{sec:control}) instead of GD iterations. Here it would be important to make sure that the low-GER differences between iterates are not masked by the accumulation of noise (as described in App.~\ref{sec:sgd_eigenmode}). The quasi GD iterations should therefore be terminated as soon as the gradient starts to grow, and supplemented with a quasi-GD iterations with a much smaller learning rate, before extracting a low-GER example.
+
+\subsection{Activation-based Neural Network Coarsening}
+\label{sec:act-based-coarsening}
+As explained in Sec.~\ref{sec:nn_coarse1}, the first, low-accuracy $Q$ and $P$ are based on activation correlations over different samples (instead of different low-GER examples). $P$ should then be \textbf{improved} by low-GER examples in the way described above.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Comparative Learning}
+\label{sec:tunning}
+\textbf{The comparative learning of a network $A$ guided by a network $B$ over a segment $C$ in } ($C$ containing one or multiple layers of $A$ as well as one or more layers of $B$) is defined as iteratively correcting the parameters of segment $C$ in $A$ to minimize the average over all data of the $l_2$ norm of the difference between the outputs of network $A$ and $B$, after applying both to the same input (i.e. a feed-forward pass) over segment $C$.
+
+Each iteration uses a batch of samples. Each sample is fed forward through the network common to $A$ and $B$ until the start of segment $C$, and then separately through the $A$ version and $B$ version of the segment. Regarding the $l_2$ norm of the difference between the two versions at the end of segment $C$ as a loss function, one calculates by back propagation the gradients of segment $C$ in network $A$. Averages of these gradients over the batch, multiplied by a suitable learning rate, are used to correct the \textbf{learned} layers (not the projection/interpolation layers) of version $A$ of segment $C$.
+
+Comparative learning is usually local (since a larger segment $C$ can usually be broken into a sequence of shorter segments), so it is expected to converge relatively fast, as only a relatively small number of parameters are updated. Importantly, comparative learning requires no annotated samples.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Representative Sample Ordering}
+\label{sec:ordering}
+The noise in training a network stems from the variance between batch averages. This variance can be significantly lowered by having the batches more similar to each other in their composition; in other words, having the sample composition of each batch as representative as possible of the composition of the entire training set. By a ``batch'' here we do not necessarily mean a minibatch, but actually a stretch of samples comparable to the \NAL~ of each gradient. 
+Since different gradients have different {\NAL}s (and each \NAL~depends on the sample ordering), we are actually interested in ordering the samples so that \emph{any} extended interval in that ordering will be as representative as possible. This is expected to be particularly important for averaging higher-level gradients, whose {\NAL}s are much shorter, and for our protobatch statistics to be as representative as possible of other batches. 
+
+Our general approach for achieving more representative sample ordering is as follows. We divide the set of training samples into disjoint subsets, different samples within the same subset being as ``similar'' to each other as possible (in a sense to be discussed below). The training sampling visits sequentially all the subsets in a random order. After visiting all the subsets, they are visited again in a new random order, and so on. In each visit to a subset only one sample is taken from it; the next sample in the subset will be taken upon the next visit to the subset. The samples within each subset are also ordered randomly, and re-ordered randomly once all of them have been taken.
+
+A related approach for sampling is introduced in the context of embedding learning in \cite{WMSK}.
+
+\subsection{Weighting}
+The standard loss function assigns equal weights to all samples. To exactly retain this loss function, in averaging the gradients in a batch, a sample in subset $\mathbb{S}$ should be assigned the weight $|\mathbb{S}|$. Alternatively, one can change the loss function, for example by giving all \emph{subsets} equal weights (thus using equal weights to all the samples in the batch), arguing that the size of a subset does not reflects its importance. 
+
+\subsection{Subset-Boosting}
+Higher weights can be assigned to subsets that show poor performance (e.g., a larger average loss). Such subset boosting can be more robust than individual sample boosting, suffering less from mis-labeling cases. 
+
+\subsection{Clustering Schedule}
+At the beginning of training, the subsets are based on the labels; e.g., each subset is one category. Later in the training, each category will be sub-divided into subsets based on similarity of the representations (feature vectors of activations) that the samples have at some layers of the network. The more advanced the training, the more accurate are these representations, enabling increasingly more accurate and finer sub-divisions.
+
+\subsection{Similarity Metric}
+We first experimented with clustering based on the $L_2$ distance between the vectors of last-layer activations. The produced sample ordering did yield some improvements in training accuracy, but those were really significant only in the case of a toy problem, where the vector length (the number of last-layer activations) was just $10$. Very slight improvements were gained for vectors of length $100$ or $1000$. 
+
+These results may be due to the metric we have used. Indeed, the $L_2$ distance between very long vectors can easily be dominated by the many distances between insignificant activations. We plan to experiment with a much more meaningful metric, based on bi-clustering samples/activations (See Section \ref{sec:bi-clustering}). One added advantage of this metric is that one does not have to decide which network layer to use. Using several layers, for each cluster the algorithm would automatically give preference to the activations more relevant to it. All the most noisy layers (those with the largest {\NAL}s) should be used. 
+
+We will also try a ``higher'' metric, based on bi-clustering of samples vs. higher-level activations (Section \ref{sec:act-based-coarsening}).
+
+\subsection{Multi-level Ordering}
+The clustering (and bi-clustering in particular) can be hierarchical. The hierarchical clustering can be used for multi-level sample ordering, generating the two-level ordering described above. 
+
+\subsection{Fuzzy Ordering}
+The (bi) clustering can be fuzzy, where each sample has a certain probability of belonging to each of several subsets. In such a case, the probability of each sample to participate in each ordering or re-ordering of a subset should equal its probability of belonging to the subset. The weight $|\mathbb{S}|$ of a subset $\mathbb{S}$ should then be defined as the sum of its sample probabilities. 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Bi-Clustering}
+\label{sec:bi-clustering}
+Various biclustering algorithms have been developed in Bioinformatics and other fields (see for example ``Biclustering'' in wikipedia). The biclustering described here is a method of clustering nodes in a bipartite graph based on the general graph coarsening approach described in \cite{RSB}. 
+
+\underline{A bipartite graph} consists of two disjoint sets of nodes (two ``partitions''), $\{a_1,a_2,\ldots,a_M\}$ and 
+$\{b_1,b_2,\ldots,b_N\}$ with no intra-partition links; the only links are from some $a_m$ to some $b_n$, having a weight $w_{mn}$. Examples:
 \begin{enumerate}
-    \item Pick a random sample $\tilde{X}$ of size $m$ of $x$-points.
-    \item Run the projected GD on the sample, obtaining an $m \times m$ rotation $\tilde{Q}$.
-    \item Replace the sample by $\tilde{X} \tilde{Q}$ in the set $X$.
-    \item Repeat steps $1-3$.
+\item
+$\{a_m\}_m$ are customers, $\{b_n\}_n$ are movies, the link $w_{mn}$ is the number of times customer $a_m$ has watched the movie $b_n$.
+\item 
+$\{a_m\}_m$ are samples for training a neural network, $\{b_n\}_n$ are  hidden units in the network, $w_{mn}$ is the activation strength sample $a_m$ produces in unit $b_n$.
 \end{enumerate}
-Since the centroid of a sample is a good approximation to the global centroid of $X$, if the sample is representative and $m$ is large enough, the global centroid will not move much as a result of updating a sample. Picking $m \approx 100$ (or even smaller) should suffice. This algorithm in has linear complexity in $n$, even if we run $O(n / m)$ steps.
 
-\subsection{Formulation with Two Normalization Constraints}
-Let $X_{s \times n}$ be a matrix of $n$ activation values over $s$ samples, or generally, a matrix of points to be clustered in $\Real^s$. The clustering distance between points is the cosine distance; for simplicity, assume that the columns $x_i$ of $X$ are normalized, that is, $\|x_i\|=1$ where $\|\cdot\|$ is the Euclidean norm and $i = 1,\dots,n$.
+Clustering in one partition is tied with clustering in the other. Two viewers can be classified as having a similar taste in watching movies not only when they have largely watched exactly the same movies, but also when the movies that they have watched largely belong to the same class of movies. And, two movies can be classified as belonging to the same class (or genre) if they have been watched by the same class of viewers. The clustering is usually fuzzy: a movie may belong to several genres; a viewer may like several different genres or movies that belong to a particular combination of genres. The following Biclustering algorithm reflects all these possibilities. 
 
-To tighten the cluster via a localization transformation, we would like to find two orthogonal linear combinations of the points, $y = \sum_i a_i x_i = X a$ and $z = \sum_i b_i x_i = X b$, such that $y$ and $z$ are maximally correlated. That means solving the constrained optimization
+The Biclustering algorithm starts by assigning each $a_m$ with a normalized random q-vector $\alpha_m$:
 \begin{equation}
-    \begin{aligned}
-       \max_{a,b}\, & \text{corr}(y,z) =  \frac{|y^T z|}{\|y\| \|z\|}\,,\\
-        \text{s.t.}\, & a^T b = 0\,.
-    \end{aligned}
+\begin{split}
+\alpha_m = \left[ (\alpha_m^1,\alpha_m^1,\ldots,\alpha_m^q) \right]_{normalized} =  \\
+(\alpha_m^1,\alpha_m^1,\ldots,\alpha_m^q) /
+\left[ \sum_{i=1}^q (\alpha_m^i)^2 \right]^{1/2},
+\end{split}
 \end{equation}
-Equivalently, we can constraint the combined points to unit norm. The absolute value can be omitted by solving both the minimization and maximization problem and taking the more extreme value of the two. So, consider
-\begin{equation}
-    \begin{aligned}
-       \max_{a,b}\, & y^T z\,,\\
-        \text{s.t.}\, & a^T b = 0\,, \quad \|y\|^2 = \|z\|^2 = 1\,.
-    \end{aligned}
-    \label{loc1}
-\end{equation}
-Let $C = X^T X$ be the covariance matrix and $C = V D V^T$, where $V$ is the (orthogonal) right singular matrix of $X$ in the SVD $X = U \Sigma V^T$, and $D = \Sigma^2$ is diagonal with the squared singular values $d_{ii} := \sigma_i^2$ on the diagonal. Let $\alpha := V^T a, \beta := V^T b$. Then (\ref{loc1}) is equivalent to
-\begin{equation}
-    \begin{aligned}
-       \max_{\alpha,\beta}\, & f(\alpha,\beta) = \alpha^T D^2 \beta\,,\\
-        \text{s.t.}\, & \alpha^T \beta = 0\,, \quad \|D \alpha\|^2 = \|D \beta\|^2 = 1\,.
-    \end{aligned}
-    \label{loc2}
-\end{equation}
-The Lagrange multiplier optimization is
-\begin{equation}
-    \begin{aligned}
-       \max_{\alpha,\beta,\lambda}\, & g(\alpha,\beta;\lambda) := \alpha^T D^2 \beta
-       + 0.5 \lambda_1 \alpha^T D^2 \alpha + 0.5 \lambda_2 \alpha^T D^2 \beta 
-       + \lambda_3 \alpha^T \beta \,,\\
-        \text{s.t.}\, & \alpha^T \beta = 0\,, \quad \|D \alpha\|^2 = \|D \beta\|^2 = 1\,.
-    \end{aligned}
-    \label{loc_lag}
-\end{equation}
-the normal equations are
-\begin{equation}
-    \begin{aligned}
-       \nabla_{\alpha} g = & D^2 \beta + \lambda_1 D^2 \alpha + \lambda_3 \beta = 0 \,,\\
-       \nabla_{\beta} g = & D^2 \alpha + \lambda_2 D^2 \beta + \lambda_3 \alpha = 0 \,,\\
-        \alpha^T \beta = & 0\,,\\
-        \alpha^T D^2 \alpha = & 1\,,\\
-        \beta^T D^2 \beta = & 1\,.
-    \end{aligned}
-    \label{loc_lag1}
-\end{equation}
-Let $R := (D^2 + \lambda_3 I)^{-1} D^2$. It follows that
-\begin{equation}
-    \begin{aligned}
-       \beta = & \lambda_1 R \alpha\,,\\
-       \alpha = & \lambda_2 R \beta
-       = \lambda_1 \lambda_2 R^2 \alpha \,,\\
-        \alpha^T \beta = & \lambda_1 \alpha^T R \alpha = 0\,,\\
-    \end{aligned}
-    \label{loc_lag2}
-\end{equation}
-Thus $\alpha$ is a null-space vector of $R^2 - \frac{1}{\lambda_1 \lambda_2} I$, or an eigenvector of $R^2$ with eigenvalue $\frac{1}{\lambda_1 \lambda_2}$. Note that $R$ is diagonal with $r_{ii} = d_{ii}^2/(d_{ii}^2 + \lambda_3)$, so (assuming all singular values are different and strictly positive) $\alpha = \frac{1}{d_{ii}} e_i$ for some $i$ (normalized to satisfy the normalization constraint $\|D \alpha\|=1$), and $\lambda_1 \lambda_2 = (1 + \lambda_3/ d_{ii}^2)^2$. 
+where each $\alpha_m^i$ is a random number uniformly distributed in the interval $[-1,1]$. 
 
-But then $\alpha$ is also an eigenvector of $R$, and $\beta = (\lambda_1 / |1 + \lambda_3/ d_{ii}^2|0 \alpha$ is proportional to $\alpha$ and cannot be orthogonal to it unless they are both $0$, but that contradicts the normalization constraints.
-
-Eq.~(\ref{loc2}) must have a solution, since the feasible set is compact and non-empty. So, if there is no mistake above and the Lagrange equations have no solution, what is the optimal solution of (\ref{loc2})?
-
-\subsection{Formulation with One Normalization Constraint}
-We would like to find two orthogonal linear combinations of the points, $y = \sum_i a_i x_i = X a$ and $z = \sum_i b_i x_i = X b$, such that $y$ and $z$ are maximally correlated. Assuming the resulting correlation is high (otherwise the localization won't contribute much), we only constrain $y$'s norm, and assume $z$'s norm is similar.
+Next, the algorithm repeats several times the alternating pair of normalized-averaging steps:
 \begin{equation}
-    \begin{aligned}
-       \max_{y,z}\, & \|y - z\|^2\,,\\
-        \text{s.t.}\, & y^T y = 1\,\quad y^T z = 0.\,.
-    \end{aligned}
-\end{equation}
-In terms of $a$, $b$, 
-\begin{equation}
-    \begin{aligned}
-       \max_{y,z}\, & (a - b)^T C (a - b)\,,\\
-        \text{s.t.}\, & a^T C a = 1\,\quad a^T C b = 0\,.
-    \end{aligned}
-\end{equation}
-where $C = X^T X$ s the covariance matrix. The Lagrange multiplier optimization is
-\begin{equation}
-    \begin{aligned}
-       \max_{a,b,\lambda}\, & g(a,b;\lambda) := 0.5 (a - b)^T C (a - b) + 0.5 \lambda_0 a^T C a +
-       \lambda_1 a^T C b\,,\\
-        \text{s.t.}\, & a^T C a = 1\,\quad a^T C b = 0\,.
-    \end{aligned}
-\end{equation}
-the normal equations are
-\begin{equation}
-    \begin{aligned}
-       \nabla_{a} g = & C(a - b) + \lambda_0 c a + \lambda_1 C b = 0 \,,\\
-       \nabla_{b} g = & C(b - a) + \lambda_1 C a = 0 \,,\\
-        a^T C a = & 1\,,\\
-        a^T C b = & 0\,.
-    \end{aligned}
-\end{equation}
-The first two equations imply that $C b = -(\lambda_0 + \lambda_1)/\lambda_1 C a$, so if $C$ is invertible $b = -(\lambda_0 + \lambda_1)/\lambda_1 a$. But since $a^T C b = 0$, this implies $lambda_0 + \lambda_1 = 0$, and therefore $b = 0$ and $z = 0$, always, $\lambda_0 = 1$, $\lambda_1 = -1$, and $a$ is arbitrary, as long as it's normalized to $a^T C a = 1$. Not what we wanted to accomplish...
-
-\subsection{Recombination to Reduce Cluster Radius}
-\label{sec:reduce_radius}
-Given a set of points $x_1,\dots,x_n \in \Real^s$ (e.g., activation sample vectors in a k-means cluster), we would like to find a normalized linear combination that minimizes the distance to the centroid (cluster center) $c$. In fact, as in an eigenvalue problem, we find multiple combinations that are orthogonal to each other. Let $X_{s \times n}$ be the matrix whose columns are $x_1,\dots,x_n$. Let $A_{n \times k}$ be a matrix whose columns are $\alpha_1,\dots,\alpha_k$, the coefficient vectors of $k$ previously-found combinations that are mutually orthogonal. We would like to find a coefficient vector $\alpha \in \Real^n$ such that 
-\begin{equation}
-    \begin{aligned}
-       \min_{\alpha}\, & \left\| X \alpha - c \right\|_2^2 \\
-        \text{s.t.}\, & \|\alpha\|^2_2 = 1\,, \qquad A^T \alpha = 0\,.
-    \end{aligned}
-    \label{reduce_radius_min}
+\begin{split}
+(1) \quad \beta_n = \left[ \sum_m w_{mn} \alpha_m / \sum_m w_{mn} \right]_{normalized}, \quad (n=1,\ldots,N) \\
+(2) \quad \alpha_m = \left[ \sum_n w_{mn} \beta_n / \sum_n w_{mn} \right]_{normalized}, \quad (m=1,\ldots,M) 
+\end{split}
+\label{eqn:bistep}
 \end{equation}
 
-This can be solved using the SVD similarly to the algorithm \cite[pp.582--583]{GoluVanl96}. Let $X = U \Sigma V^T$ be the SVD decomposition of $X$. 
+After such steps, two viewrs $a_m$ and $a_{m'}$ who watched nearly the same movies would clearly have small distance between them:
 \begin{equation}
-    \begin{aligned}
-       \min_{\alpha}\, & \left\| U \Sigma V^T \alpha - c \right\|_2^2 
-       = \left\| \Sigma V^T \alpha - U^T c \right\|_2^2 
-       = \left\| \Sigma y - b \right\|_2^2 \\
-        \text{s.t.}\, & \|y\|^2_2 = 1\,, \qquad B^T y = 0\,,
-    \end{aligned}
-    \label{reduce_radius_min2}
-\end{equation}
-where $y := V^T \alpha$, $b := U^T c$, $B := V^T A$. (\ref{reduce_radius_min2}) can be solved by Lagrange multipliers:
-$$ \min_{\alpha,\lambda, \mu} \frac12 \left\| \Sigma y - b \right\|_2^2 + \frac12 \lambda \left( \|y\|^2_2 - 1 \right) +
-\mu^T B^T y\,.$$
-The normal equations are
-$$ \Sigma^2 y - \Sigma b + \lambda y + B \mu = 0\,,$$
-and solving for y,
-$$ y = \left( \Sigma^2 + \lambda I \right)^{-1} \left( \Sigma b 
- - B \mu\right)\,.$$
-Substituting into the orthogonality constraint, we get
-$$ B^T \left( \Sigma^2 + \lambda I \right)^{-1} \left( \Sigma b 
- - B \mu\right) = 0\,,$$
-thus
-$$ \mu = \left( B^T \left( \Sigma^2 + \lambda I \right)^{-1} B \right)^{-1} B^T \left( \Sigma^2 + \lambda I \right)^{-1} \Sigma b\,. $$
-Now we can express $y$ in terms of $\lambda$ only,
-\begin{equation}
-\begin{aligned}
-y(\lambda) = & \left( \Sigma^2 + \lambda I \right)^{-1} \left( \Sigma b 
- - B \left( B^T \left( \Sigma^2 + \lambda I \right)^{-1} B \right)^{-1} B^T \left( \Sigma^2 + \lambda I \right)^{-1} \Sigma b \right) \\
-      & = \left( I - B \left( B^T \left( \Sigma^2 + \lambda I \right)^{-1} B \right)^{-1} B^T\right) \left( \Sigma^2 + \lambda I \right)^{-1} \Sigma b\,.
-\end{aligned}
-\end{equation}
-$\lambda$ can be found from a root search of the secular function
-\begin{equation}
-    \phi(\lambda) := \|y(\lambda)\|^2 - 1 = 0\,.
+d_{mm'} := \|\alpha_m - \alpha_{m'} \| \ll 1\,.
 \end{equation}
 
-\bibliographystyle{plain}
-\bibliography{mlnn}
+Moreover, $d_{mm'}$ will be small even if the movies they watch were quite different, as long as most of them have been watched by largely the same audience; and so on, back and forth between movies and viewers.
 
-\title{Multilevel Optimization of Neural Networks:
-Work Log}
+For efficiency, only a small number of normalized averaging steps (\ref{eqn:bistep}) should be made. The $d_{mm'}$ metric can thus only be used to identify small neighborhoods in each partition. In other words, it can be used for building in each partition many \underline{mini-clusters} of neighbors (using for efficiency iterative hierarchical k-means algorithm; see Appendix~\ref{sec:additional}). Larger clusters can then be constructed by clustering together neighboring mini-clusters based on a metric defined below. The new clusters can then be clustered to form the next level of still larger clusters. And so on, building a hierarchy of clusters.
 
+\underline{Fuzzy hierarchical clustering.} Instead of the disjoint miniclusters one can use the $d_{mm'}$ metric to build in each partition \underline{fuzzy} mini-clusters, where each node has a \underline{probability} of belonging to each one of possible \underline{several} mini-clusters. The same can then be done at all levels of the hierarchical clustering. 
+
+\underline{cluster metric.} To create a bipartite graph whose nodes are the mini-clusters, we need to define  the affinity (the weight of the link) between any mini-cluster $A_p$ in the first partition and any mini-cluster $B_q$ in the second partition. A natural definition is
+\begin{equation}
+W_{pq} = \frac{\sum_{n,m} P^a_{mp}P^b_{nq}{w_{mn}}^\eta}{ \sum_{n,m}P^a_{mp}P^b_{nq}}
+\label{eqn:b2}
+\end{equation}
+where
+\begin{equation}
+P^a_{mp} = \prob \left[a_m \in A_p\right], \quad P^b_{nq} = \prob \left[ b_n \in B_q \right]
+\end{equation}
+and $\eta>0$ is a hyper-parameter that can be chosen higher or lower to emphasize or de-emphasize strong links.
+
+As explained in \cite{RSB}, the bottom/up hierarchical way of constructing clusters is not just desired in various applications, and not just very efficient computationally, but can also create better clustering, since:
+
+\begin{itemize}
+\item
+In most applications, graph distances can only accurately (or meaningfully) be defined between \underline{close} neighbors. Large-scale distances should be defined in terms of distances between clusters at some appropriate level. (Note however that for efficiency, at each level of the bottom/up clustering, our algorithm employs a top/down procedure as part of the iterative hierarchical k-means.)
+\item
+The clustering metric at high levels, should often take into account not just the lower-level metric (as in \eqref{eqn:b2}) but also some ``aggregative properties", i.e., cluster properties that are not at all visible (or definable) at the lower levels. These may modify $W_{pq}$ as well as introduce some \underline{intra}-partition links, creating at some levels \underline{generalized} bipartite graphs.
+\end{itemize}
+
+\underline{Generalized bipartite graph} is a bipartite graph that admits some intra-partition links, with weights $w^a_{mm'}$, linking $a_m$ and $a_{m'}$ and $w^b_{nn'}$, linking $b_n$ and $b_{n'}$. The biclustering algorithm remains the same as above, except that in the normalized-averaging algorithm \eqref{eqn:bistep}, step (1) is replaced by
+\begin{equation}
+\beta_n = \left[ \frac{\sum_m w_{mn} \alpha_m + \sum_{n'} w_{nn'}^b \bar{\beta_n}}
+{\sum_m w_{mn} + \sum_{n'} w_{nn'}^b} \right]_{normalized} 
+\end{equation}
+where $\bar{\beta_n}$ is the value of $\beta_n$ in the previous iteration. Step (2) of \eqref{eqn:bistep} is similarly modified. In the first iteration $\bar{\beta_n}=0$ or random $(-1,1)$. Similarly to the 
+\underline{inter}-partition averaging \eqref{eqn:b2}, \underline{intra}-partition weights at the higher level are then defined by averaging the corresponding intra-partition weights from the lower level.
+
+\section{Sparse Linkage Clustering}
+\label{sparse_linkage_clustering}
+Given the set of \textbf{feature vectors} $E_1, \dots, E_n \in \Real^K$ and a distance metric $d(\cdot, \cdot)$, we would like to partition them into \textbf{small} neighborhoods, i.e., many clusters, each containing a few proximal objects. This task arises in building local neighborhoods of highly-correlated network parameters (Sec.~\ref{sec:neighborhoods}), as part of the coarsening construction. In that case $E_i=(E^1_i,\dots,E^K_i)$ is the vector of values of the $i${\it th} parameter in $K$ low-GER examples, and $d$ is defined by (\ref{dij}).
+
+Our approach is a variant of single-linkage clustering optimized for our needs, which we describe below; see \cite{clustering_book} for a comprehensive survey of bottom-up agglomerative clustering, and in particular, standard single-linkage clustering.
+
+The algorithm takes two inputs: the maximum cluster size $c > 1$, and distance threshold $\dmax$. Only vectors with distance $\leq \dmax$ are clustered together.
+
+{\mbox{}}\\ \noindent
+\textbf{Step A: Calculate the sparse distance matrix.} We calculate the \textbf{sparse} distance matrix $D$ containing only distances $\in (0, \dmax]$ (note that this excludes the diagonal). The naive way is to calculate the entire matrix and threshold it, which is fine for the activation-based coarsening of Sec.~\ref{sec:act-based-coarsening}, as the complexity is $O(n^2)$ where $n$ is the number of \text{activations}, but is still linear in the number of \textbf{parameters}. Furthermore, the calculation can be vectorized (as $d$ depends on dot products). More generally, quadratic complexity can be avoided by running a top-down multilevel $k$-means-like algorithm called \textbf{mini-clustering} (App.~\ref{sec:additional}), which requires only $O(n \log n)$ operations to find all strong connections. Once constructed, $D$ is stored in compressed-column format (matrix construction requires $O(n)$ with radix sort of the list of connections/non-zeros, although in practice quicksort is often faster). 
+
+{\mbox{}}\\ \noindent
+\textbf{Step B: Agglomerate.} This follows the single-linkage greedy process that clusters the closest pair at each step. The difference is that \textbf{$D$'s sparsity pattern is kept fixed}. Let $D(i, :)$ denote the $i${\it th} row of $D$ and $D(:, i)$ be the $i${\it th} column. 
+\begin{enumerate}
+	\item Initialize $n$ clusters $C_i$, each containing an individual object. Mark all $i=1,\dots,n$ as active. 
+	\item Find the minimum distance between two clusters; suppose these are $C_i$, $C_j$ with $i \not = j$.
+	\item While $d_{ij} \geq \dmax$, run steps 4-9.
+	\item Set $C_i \leftarrow C_i \cup C_j$.
+	\item Mark $j$ as inactive. Set the non-zero elements of the $j${\it th} row of $D$ to $\infty$.
+	\item Set the non-zero elements of the $i${\it th} row and column of $D$ to $d(C_i, l)$ for all $l$ (such that $d_{il} \not = 0$).
+	\item  Let $F := \left\{ l : |C_l| > c - |C_i| {\mbox{ or }} l {\mbox{ is inactive}} \right\}$. Set $d_{il} \leftarrow \infty$ for all $l \in F$.
+	\item Set $D(:, i) \leftarrow D(i, :)^T, D(:, j) \leftarrow D(j, :)^T$ to keep $D$ symmetric.
+	\item Find the new minimum distance $d_{ij}$ between two clusters $i$, $j$.
+\end{enumerate}
+Because $D$'s sparsity pattern is fixed, all operations are fast, as the CSR index and data arrays do not need to be resized or reallocated. The only non-contiguous operation is step $8$ (column updates), which can be executed quickly by also maintaining a compressed-column (CSC) format of $D$ and a lookup mapping between the CSC and CSR arrays. If $D$ has $m$ non-zeros per row, steps 4, 5, 7 and 8 require $O(m)$ operations.
+
+In step 6, we calculate the distances between a cluster $C_i$ and points $l$. $d(C_i, l)$'s definition depends on the specific application. For our coarsening, let $E$ be the matrix whose columns are $E_1,\dots,E_n$. Let $E(:, C_i)$ be the sub-matrix comprising of the columns belonging to $C_i$. We define the cluster vector as the principal component of $E(:, C_i)$ (i.e., the right singular vector corresponding to the largest singular value), which serves as the new value of $E_i$. $d(C_i, j)$ is then conveniently defined again by (\ref{dij}). Calculating the SVD requires $O(|C_i| K^2 + K |C_i|^2)$, but the principal component can be well approximated by a few iterations of the method power method on $E(:, C_i)$, reducing the cost to $O(|C_i| K) \leq O(c K)$.
+
+The total clustering complexity is bounded by $O((log n + (c K + m)(1-1/c)) n)$, as at most $n - n/c$ clustering steps are executed, compared with $O(n^2)$ required by standard single-clustering implementations (e.g., based on  Prim's algorithm \cite{clustering_book}).
+
+\section{Additional Planned Sections}
+\label{sec:additional}
+\begin{itemize}
+	\item Continuation: defining and obtaining the solution to the non-linear optimization problem as the limit of a chain of increasingly complex sub-problems.
+	\item Mini-clustering: clustering $n$ vectors in a metric space into $O(n)$ coarse neighborhoods from in $O(n \log n)$ operations using a top-down multi-level algorithm. 
+\end{itemize}
+
+%\section{Continuation}
+%\label{sec:continuation}
+%
+%section{Mini-Clustering}
+%\label{sec:miniclustering}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Bibliography.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\bibliography{msgd}
 \end{document}
